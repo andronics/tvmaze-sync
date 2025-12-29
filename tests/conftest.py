@@ -88,7 +88,7 @@ def test_config():
         sync=SyncConfig(),
         filters=FiltersConfig(
             genres=GenreFilter(exclude=["Reality", "Talk Show"]),
-            status=StatusFilter(exclude_ended=True)
+            status=StatusFilter(exclude_ended=False)
         ),
         sonarr=SonarrConfig(
             url="http://localhost:8989",

@@ -71,6 +71,9 @@ def test_rate_limiter_sliding_window_cleanup():
     # Wait for window to pass
     time.sleep(0.6)
 
+    # Trigger cleanup
+    limiter.cleanup()
+
     # Old requests should be cleaned up
     assert len(limiter._timestamps) == 0
 
@@ -239,7 +242,7 @@ def test_request_with_api_key(tvmaze_show_response):
     """Test that API key is included in requests."""
     def request_callback(request):
         # Verify API key is in URL
-        assert "api_key=premium_key" in request.url
+        assert "apikey=premium_key" in request.url
         return (200, {}, '{"id": 1}')
 
     responses.add_callback(

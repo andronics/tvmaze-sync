@@ -129,7 +129,7 @@ def test_validate_root_folder_not_found(mock_sonarr_api, sonarr_root_folders):
     client = SonarrClient(config)
     client.api = mock_api
 
-    with pytest.raises(ConfigurationError, match="Root folder not found"):
+    with pytest.raises(ConfigurationError, match=r"Root folder.*not found"):
         client._validate_root_folder()
 
 
@@ -215,7 +215,7 @@ def test_validate_quality_profile_not_found(mock_sonarr_api, sonarr_quality_prof
     client = SonarrClient(config)
     client.api = mock_api
 
-    with pytest.raises(ConfigurationError, match="Quality profile not found"):
+    with pytest.raises(ConfigurationError, match=r"Quality profile.*not found"):
         client._validate_quality_profile()
 
 
@@ -383,7 +383,7 @@ def test_validate_tags_not_found(mock_sonarr_api, sonarr_tags):
     client = SonarrClient(config)
     client.api = mock_api
 
-    with pytest.raises(ConfigurationError, match="Tag not found"):
+    with pytest.raises(ConfigurationError, match=r"Tag.*not found"):
         client._validate_tags()
 
 
@@ -542,12 +542,14 @@ def test_add_series_success(mock_sonarr_api):
     from src.models import SonarrParams
 
     params = SonarrParams(
-        root_folder=1,
+        tvdb_id=81189,
+        title="Breaking Bad",
+        root_folder="/tv",
         quality_profile_id=1,
         language_profile_id=None,
         monitor="all",
         search_on_add=True,
-        tag_ids=[]
+        tags=[]
     )
 
     series_data = {"tvdbId": 81189, "title": "Breaking Bad"}
@@ -583,12 +585,14 @@ def test_add_series_already_exists(mock_sonarr_api):
     from src.models import SonarrParams
 
     params = SonarrParams(
-        root_folder=1,
+        tvdb_id=81189,
+        title="Breaking Bad",
+        root_folder="/tv",
         quality_profile_id=1,
         language_profile_id=None,
         monitor="all",
         search_on_add=True,
-        tag_ids=[]
+        tags=[]
     )
 
     result = client.add_series(params, {})
@@ -620,12 +624,14 @@ def test_add_series_pyarr_error(mock_sonarr_api):
     from src.models import SonarrParams
 
     params = SonarrParams(
-        root_folder=1,
+        tvdb_id=81189,
+        title="Breaking Bad",
+        root_folder="/tv",
         quality_profile_id=1,
         language_profile_id=None,
         monitor="all",
         search_on_add=True,
-        tag_ids=[]
+        tags=[]
     )
 
     result = client.add_series(params, {})

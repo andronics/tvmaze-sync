@@ -183,11 +183,17 @@ def test_refilter_endpoint_success(flask_client, mock_flask_dependencies, sample
     assert isinstance(data['refiltered'], int)
 
 
-def test_refilter_endpoint_error(flask_client, mock_flask_dependencies):
+def test_refilter_endpoint_error(flask_client, mock_flask_dependencies, monkeypatch):
     """Test /refilter endpoint error handling."""
-    # Make processor raise an error
-    processor = mock_flask_dependencies['processor']
+    # Make re_evaluate_filtered_shows raise an error
+    def mock_refilter_error(*args, **kwargs):
+        raise Exception("Test error")
 
-    with pytest.raises(Exception):
-        # This will cause an error in re_evaluate_filtered_shows
-        response = flask_client.post('/refilter')
+    monkeypatch.setattr('src.server.re_evaluate_filtered_shows', mock_refilter_error)
+
+    response = flask_client.post('/refilter')
+
+    assert response.status_code == 500
+    data = response.json
+    assert data['status'] == 'error'
+    assert 'error' in data
