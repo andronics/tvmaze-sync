@@ -85,9 +85,35 @@ class Scheduler:
         Safely log a message, handling closed stream errors.
 
         During shutdown (especially in tests), logging streams may be closed
-        before background threads stop. This method catches ValueError exceptions
-        that occur when trying to write to closed streams and silently ignores them.
+        before background threads stop. This method checks handler validity
+        and suppresses Python's logging error handler to prevent error messages
+        from polluting test output.
         """
+        # Check if any handlers have valid (open) streams
+        has_valid_handler = False
+        for handler in logger.handlers:
+            if hasattr(handler, 'stream'):
+                try:
+                    # Try to check if stream is closed
+                    if not handler.stream.closed:
+                        has_valid_handler = True
+                        break
+                except (AttributeError, ValueError):
+                    # Stream doesn't have 'closed' attribute or is invalid
+                    continue
+            else:
+                # Non-stream handlers (like NullHandler) are OK
+                has_valid_handler = True
+                break
+
+        # If no valid handlers, skip logging to avoid errors
+        if not has_valid_handler:
+            return
+
+        # Temporarily suppress logging's internal error handler
+        old_raise_exceptions = logging.raiseExceptions
+        logging.raiseExceptions = False
+
         try:
             log_func = getattr(logger, level)
             if exc_info:
@@ -95,8 +121,11 @@ class Scheduler:
             else:
                 log_func(message)
         except (ValueError, OSError):
-            # Logging stream closed during shutdown - ignore silently
+            # Stream closed during logging - ignore silently
             pass
+        finally:
+            # Restore original setting
+            logging.raiseExceptions = old_raise_exceptions
 
     def _run_loop(self) -> None:
         """Main scheduler loop."""
