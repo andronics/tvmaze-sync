@@ -417,7 +417,7 @@ def test_validate_config_full_flow(
     client.validate_config()
 
     assert client.validated_params is not None
-    assert client.validated_params["root_folder_id"] == 1
+    assert client.validated_params["root_folder"] == "/tv"
     assert client.validated_params["quality_profile_id"] == 1
     assert client.validated_params["tag_ids"] == [1]
 
@@ -439,14 +439,14 @@ def testvalidated_params_property(mock_sonarr_api):
 
     client = SonarrClient(config)
     client.validated_params = {
-        "root_folder_id": 1,
+        "root_folder": "/tv",
         "quality_profile_id": 1,
         "language_profile_id": None,
         "tag_ids": []
     }
 
     params = client.validated_params
-    assert params["root_folder_id"] == 1
+    assert params["root_folder"] == "/tv"
 
 
 # lookup_series tests

@@ -482,7 +482,7 @@ def mock_sonarr_client(sonarr_series_lookup):
     client.add_series = Mock(return_value=AddResult(success=True, series_id=1))
     client.is_healthy = Mock(return_value=True)
     client.validated_params = {
-        'root_folder_id': 1,
+        'root_folder': '/tv',
         'quality_profile_id': 1,
         'language_profile_id': None,
         'tag_ids': []

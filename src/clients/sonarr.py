@@ -252,7 +252,6 @@ class SonarrClient:
 
         return {
             'root_folder': self._root_folder_path,
-            'root_folder_id': self._root_folder_id,
             'quality_profile_id': self._quality_profile_id,
             'language_profile_id': self._language_profile_id,
             'tag_ids': self._tag_ids,

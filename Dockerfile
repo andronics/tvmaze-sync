@@ -17,9 +17,10 @@ COPY src/ ./src/
 # Install package and dependencies
 RUN pip install --no-cache-dir .
 
-# Create non-root user for security
+# Create non-root user and volume directories with correct ownership
 RUN useradd -m -u 1000 tvmaze && \
-    chown -R tvmaze:tvmaze /app
+    mkdir -p /data /config && \
+    chown -R tvmaze:tvmaze /app /data /config
 
 # Create volume mount points
 VOLUME ["/data", "/config"]
