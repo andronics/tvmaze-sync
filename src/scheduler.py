@@ -80,9 +80,56 @@ class Scheduler:
         with self._lock:
             return self._running
 
+    def _safe_log(self, level: str, message: str, exc_info: bool = False) -> None:
+        """
+        Safely log a message, handling closed stream errors.
+
+        During shutdown (especially in tests), logging streams may be closed
+        before background threads stop. This method checks handler validity
+        and suppresses Python's logging error handler to prevent error messages
+        from polluting test output.
+        """
+        # Check if any handlers have valid (open) streams
+        has_valid_handler = False
+        for handler in logger.handlers:
+            if hasattr(handler, 'stream'):
+                try:
+                    # Try to check if stream is closed
+                    if not handler.stream.closed:
+                        has_valid_handler = True
+                        break
+                except (AttributeError, ValueError):
+                    # Stream doesn't have 'closed' attribute or is invalid
+                    continue
+            else:
+                # Non-stream handlers (like NullHandler) are OK
+                has_valid_handler = True
+                break
+
+        # If no valid handlers, skip logging to avoid errors
+        if not has_valid_handler:
+            return
+
+        # Temporarily suppress logging's internal error handler
+        old_raise_exceptions = logging.raiseExceptions
+        logging.raiseExceptions = False
+
+        try:
+            log_func = getattr(logger, level)
+            if exc_info:
+                log_func(message, exc_info=True)
+            else:
+                log_func(message)
+        except (ValueError, OSError):
+            # Stream closed during logging - ignore silently
+            pass
+        finally:
+            # Restore original setting
+            logging.raiseExceptions = old_raise_exceptions
+
     def _run_loop(self) -> None:
         """Main scheduler loop."""
-        logger.info("Scheduler loop started")
+        self._safe_log("info", "Scheduler loop started")
 
         while not self._stop_event.is_set():
             # Calculate next run time
@@ -99,9 +146,9 @@ class Scheduler:
                 break
 
             if triggered:
-                logger.info("Running sync cycle (manually triggered)")
+                self._safe_log("info", "Running sync cycle (manually triggered)")
             else:
-                logger.info("Running sync cycle (scheduled)")
+                self._safe_log("info", "Running sync cycle (scheduled)")
 
             # Run sync
             with self._lock:
@@ -110,9 +157,9 @@ class Scheduler:
             try:
                 self.sync_func()
             except Exception as e:
-                logger.exception("Sync cycle failed")
+                self._safe_log("exception", "Sync cycle failed", exc_info=True)
             finally:
                 with self._lock:
                     self._running = False
 
-        logger.info("Scheduler loop exited")
+        self._safe_log("info", "Scheduler loop exited")
