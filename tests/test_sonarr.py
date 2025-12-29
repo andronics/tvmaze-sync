@@ -23,7 +23,7 @@ def test_sonarr_client_initialization():
     client = SonarrClient(config)
 
     assert client.config == config
-    assert client._validated_params is None
+    assert client.validated_params is None
 
 
 # Connection validation tests
@@ -416,16 +416,16 @@ def test_validate_config_full_flow(
     client = SonarrClient(config)
     client.validate_config()
 
-    assert client._validated_params is not None
-    assert client._validated_params["root_folder_id"] == 1
-    assert client._validated_params["quality_profile_id"] == 1
-    assert client._validated_params["tag_ids"] == [1]
+    assert client.validated_params is not None
+    assert client.validated_params["root_folder_id"] == 1
+    assert client.validated_params["quality_profile_id"] == 1
+    assert client.validated_params["tag_ids"] == [1]
 
 
 # validated_params property test
 
 @patch('src.clients.sonarr.SonarrAPI')
-def test_validated_params_property(mock_sonarr_api):
+def testvalidated_params_property(mock_sonarr_api):
     """Test validated_params property."""
     mock_api = Mock()
     mock_sonarr_api.return_value = mock_api
@@ -438,7 +438,7 @@ def test_validated_params_property(mock_sonarr_api):
     )
 
     client = SonarrClient(config)
-    client._validated_params = {
+    client.validated_params = {
         "root_folder_id": 1,
         "quality_profile_id": 1,
         "language_profile_id": None,
@@ -542,7 +542,7 @@ def test_add_series_success(mock_sonarr_api):
     from src.models import SonarrParams
 
     params = SonarrParams(
-        root_folder_id=1,
+        root_folder=1,
         quality_profile_id=1,
         language_profile_id=None,
         monitor="all",
@@ -583,7 +583,7 @@ def test_add_series_already_exists(mock_sonarr_api):
     from src.models import SonarrParams
 
     params = SonarrParams(
-        root_folder_id=1,
+        root_folder=1,
         quality_profile_id=1,
         language_profile_id=None,
         monitor="all",
@@ -620,7 +620,7 @@ def test_add_series_pyarr_error(mock_sonarr_api):
     from src.models import SonarrParams
 
     params = SonarrParams(
-        root_folder_id=1,
+        root_folder=1,
         quality_profile_id=1,
         language_profile_id=None,
         monitor="all",

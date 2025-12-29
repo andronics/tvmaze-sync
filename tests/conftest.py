@@ -394,7 +394,7 @@ def mock_flask_dependencies(test_db, test_state, test_config):
     # Create processor
     processor = ShowProcessor(test_config.filters, test_config.sonarr)
     processor.set_validated_sonarr_params(
-        root_folder_id=1,
+        root_folder="/tv",
         quality_profile_id=1,
         language_profile_id=None,
         tag_ids=[]

@@ -188,7 +188,7 @@ def test_load_config_yaml_parse_error():
         config_path = Path(f.name)
 
     try:
-        with pytest.raises(ConfigurationError, match="Failed to parse"):
+        with pytest.raises(ConfigurationError, match="Invalid YAML"):
             load_config(config_path)
     finally:
         os.unlink(config_path)
@@ -271,7 +271,7 @@ def test_resolve_env_value_file_not_found():
     """Test resolving env var when file doesn't exist."""
     os.environ["TEST_VAR_FILE"] = "/nonexistent/file.txt"
 
-    with pytest.raises(ConfigurationError, match="File not found"):
+    with pytest.raises(ConfigurationError, match="File specified"):
         resolve_env_value("${TEST_VAR}")
 
     del os.environ["TEST_VAR_FILE"]
@@ -296,11 +296,11 @@ def test_apply_env_overrides_boolean_parsing():
 @pytest.mark.unit
 def test_validate_config_invalid_premiered_after(test_config):
     """Test validation with invalid premiered_after date format."""
-    from src.config import FiltersConfig
+    from src.config import FiltersConfig, PremieredFilter
 
     test_config = test_config.__class__(
-        **{**test_config.__dict__, "filters": FiltersConfig(premiered_after="invalid-date")}
+        **{**test_config.__dict__, "filters": FiltersConfig(premiered=PremieredFilter(after="invalid-date"))}
     )
 
-    with pytest.raises(ConfigurationError, match="Invalid filters.premiered_after"):
+    with pytest.raises(ConfigurationError, match="Invalid filters.premiered.after"):
         validate_config(test_config)

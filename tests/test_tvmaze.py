@@ -26,7 +26,7 @@ def test_rate_limiter_initialization():
 
     assert limiter.max_requests == 20
     assert limiter.window_seconds == 10
-    assert len(limiter.request_times) == 0
+    assert len(limiter._timestamps) == 0
 
 
 def test_rate_limiter_allows_requests_within_limit():
@@ -72,7 +72,7 @@ def test_rate_limiter_sliding_window_cleanup():
     time.sleep(0.6)
 
     # Old requests should be cleaned up
-    assert len(limiter.request_times) == 0
+    assert len(limiter._timestamps) == 0
 
 
 def test_rate_limiter_wait_time():
@@ -125,7 +125,7 @@ def test_tvmaze_client_initialization_without_api_key():
     config = TVMazeConfig()
     client = TVMazeClient(config)
 
-    assert client.api_key is None
+    assert client.config.api_key is None
     assert client.rate_limiter.max_requests == 20
     assert "User-Agent" in client.session.headers
 
@@ -135,7 +135,7 @@ def test_tvmaze_client_initialization_with_api_key():
     config = TVMazeConfig(api_key="premium_key", rate_limit=100)
     client = TVMazeClient(config)
 
-    assert client.api_key == "premium_key"
+    assert client.config.api_key == "premium_key"
     assert client.rate_limiter.max_requests == 100
 
 

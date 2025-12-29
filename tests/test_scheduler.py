@@ -19,7 +19,7 @@ def test_scheduler_initialization(mock_sync_func):
     assert scheduler.sync_func == mock_sync_func
     assert scheduler._stop_event is not None
     assert scheduler._thread is None
-    assert scheduler._last_run is None
+    assert scheduler._next_run is None
 
 
 def test_scheduler_start(short_interval_scheduler):

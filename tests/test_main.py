@@ -84,7 +84,7 @@ def test_process_single_show_add(test_db, test_config, mock_sonarr_client, sampl
 
     processor = ShowProcessor(test_config.filters, test_config.sonarr)
     processor.set_validated_sonarr_params(
-        root_folder_id=1,
+        root_folder="/tv",
         quality_profile_id=1,
         language_profile_id=None,
         tag_ids=[]
@@ -121,19 +121,21 @@ def test_process_single_show_dry_run(test_db, test_config, mock_sonarr_client, s
     """Test dry run mode."""
     from src.processor import ShowProcessor
 
-    # Enable dry run
-    test_config.dry_run = True
+    # Create new config with dry_run enabled
+    dry_run_config = test_config.__class__(
+        **{**test_config.__dict__, 'dry_run': True}
+    )
 
-    processor = ShowProcessor(test_config.filters, test_config.sonarr)
+    processor = ShowProcessor(dry_run_config.filters, dry_run_config.sonarr)
     processor.set_validated_sonarr_params(
-        root_folder_id=1,
+        root_folder="/tv",
         quality_profile_id=1,
         language_profile_id=None,
         tag_ids=[]
     )
 
     # Process show
-    process_single_show(test_db, test_config, mock_sonarr_client, processor, sample_show, sync_stats)
+    process_single_show(test_db, dry_run_config, mock_sonarr_client, processor, sample_show, sync_stats)
 
     # Verify Sonarr was not called
     mock_sonarr_client.add_series.assert_not_called()
@@ -145,7 +147,7 @@ def test_process_single_show_pending_tvdb(test_db, test_config, mock_sonarr_clie
 
     processor = ShowProcessor(test_config.filters, test_config.sonarr)
     processor.set_validated_sonarr_params(
-        root_folder_id=1,
+        root_folder="/tv",
         quality_profile_id=1,
         language_profile_id=None,
         tag_ids=[]
@@ -165,7 +167,7 @@ def test_process_single_show_exists(test_db, test_config, mock_sonarr_client, sa
 
     processor = ShowProcessor(test_config.filters, test_config.sonarr)
     processor.set_validated_sonarr_params(
-        root_folder_id=1,
+        root_folder="/tv",
         quality_profile_id=1,
         language_profile_id=None,
         tag_ids=[]
@@ -193,7 +195,7 @@ def test_process_single_show_failed(test_db, test_config, mock_sonarr_client, sa
 
     processor = ShowProcessor(test_config.filters, test_config.sonarr)
     processor.set_validated_sonarr_params(
-        root_folder_id=1,
+        root_folder="/tv",
         quality_profile_id=1,
         language_profile_id=None,
         tag_ids=[]
@@ -220,7 +222,7 @@ def test_process_single_show_lookup_not_found(test_db, test_config, mock_sonarr_
 
     processor = ShowProcessor(test_config.filters, test_config.sonarr)
     processor.set_validated_sonarr_params(
-        root_folder_id=1,
+        root_folder="/tv",
         quality_profile_id=1,
         language_profile_id=None,
         tag_ids=[]
@@ -246,7 +248,7 @@ def test_sync_cycle_initial(mock_retry, mock_initial, test_db, test_state, test_
 
     processor = ShowProcessor(test_config.filters, test_config.sonarr)
     processor.set_validated_sonarr_params(
-        root_folder_id=1,
+        root_folder="/tv",
         quality_profile_id=1,
         language_profile_id=None,
         tag_ids=[]
@@ -271,7 +273,7 @@ def test_sync_cycle_incremental(mock_retry, mock_incremental, test_db, test_stat
 
     processor = ShowProcessor(test_config.filters, test_config.sonarr)
     processor.set_validated_sonarr_params(
-        root_folder_id=1,
+        root_folder="/tv",
         quality_profile_id=1,
         language_profile_id=None,
         tag_ids=[]
@@ -296,7 +298,7 @@ def test_run_initial_sync_pagination(test_db, test_state, test_config, mock_sona
 
     processor = ShowProcessor(test_config.filters, test_config.sonarr)
     processor.set_validated_sonarr_params(
-        root_folder_id=1,
+        root_folder="/tv",
         quality_profile_id=1,
         language_profile_id=None,
         tag_ids=[]
@@ -327,7 +329,7 @@ def test_retry_pending_tvdb_success(test_db, test_state, test_config, mock_sonar
 
     processor = ShowProcessor(test_config.filters, test_config.sonarr)
     processor.set_validated_sonarr_params(
-        root_folder_id=1,
+        root_folder="/tv",
         quality_profile_id=1,
         language_profile_id=None,
         tag_ids=[]
