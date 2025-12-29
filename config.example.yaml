@@ -1,0 +1,135 @@
+# TVMaze-Sync Configuration Example
+# Copy this file to config.yaml and customize for your setup
+
+# TVMaze API Configuration
+tvmaze:
+  # Optional premium API key for higher rate limits
+  # Supports ${VAR} and ${VAR_FILE} patterns
+  api_key: "${TVMAZE_API_KEY}"  # or set to null if not using premium
+
+  # Rate limit (requests per 10 seconds)
+  # Free tier: 20, Premium: higher
+  rate_limit: 20
+
+  # How far back to check for updates: day, week, month
+  update_window: "week"
+
+# Sync Cycle Configuration
+sync:
+  # How often to run sync cycles
+  # Format: Xh (hours), Xm (minutes), Xd (days), Xw (weeks)
+  poll_interval: "6h"
+
+  # How long to wait before retrying shows with pending TVDB IDs
+  retry_delay: "1w"
+
+  # Maximum retry attempts for pending_tvdb shows
+  max_retries: 4
+
+# Show Filtering Configuration
+filters:
+  # Genre filters
+  genres:
+    # Exclude shows with these genres
+    exclude:
+      - "Reality"
+      - "Talk Show"
+      - "Game Show"
+      - "News"
+      - "Sports"
+
+  # Show type filters
+  types:
+    # Only include these show types (leave empty to include all)
+    include:
+      - "Scripted"
+      - "Animation"
+      - "Documentary"
+
+  # Country filters (ISO 3166-1 country codes)
+  countries:
+    # Only include shows from these countries (leave empty to include all)
+    # Note: UK is "GB" not "UK"
+    include:
+      - "US"
+      - "GB"
+      - "CA"
+      - "AU"
+      - "NZ"
+      - "IE"
+
+  # Language filters
+  languages:
+    # Only include shows in these languages (leave empty to include all)
+    include:
+      - "English"
+
+  # Status filters
+  status:
+    # Exclude shows that have ended
+    exclude_ended: true
+
+  # Premiere date filters
+  premiered:
+    # Only include shows that premiered after this date (ISO format: YYYY-MM-DD)
+    # Set to null to disable
+    after: "2010-01-01"
+
+  # Minimum runtime in minutes (set to null to disable)
+  min_runtime: 20
+
+# Sonarr Configuration
+sonarr:
+  # Sonarr URL (required)
+  url: "${SONARR_URL}"
+
+  # Sonarr API key (required)
+  # Use ${SONARR_API_KEY_FILE} for Docker secrets
+  api_key: "${SONARR_API_KEY}"
+
+  # Root folder path or ID (required)
+  # Can be path like "/tv" or ID like "1"
+  root_folder: "/tv"
+
+  # Quality profile name or ID (required)
+  # Can be name like "HD-1080p" or ID like "4"
+  quality_profile: "HD-1080p"
+
+  # Language profile (required for Sonarr v3, ignored in v4+)
+  # Can be name like "English" or ID like "1"
+  language_profile: "English"
+
+  # Monitor mode: all, future, missing, existing, pilot, firstSeason, latestSeason, none
+  monitor: "all"
+
+  # Search for missing episodes after adding
+  search_on_add: true
+
+  # Tags to apply (list of tag names or IDs)
+  tags:
+    - "auto-sync"
+
+# Storage Configuration
+storage:
+  # Path to data directory for database and state files
+  path: "/data"
+
+# Logging Configuration
+logging:
+  # Log level: DEBUG, INFO, WARNING, ERROR, CRITICAL
+  level: "INFO"
+
+  # Log format: json, text
+  format: "json"
+
+# HTTP Server Configuration
+server:
+  # Enable HTTP server for health checks, metrics, and API
+  enabled: true
+
+  # Port to listen on
+  port: 8080
+
+# Dry Run Mode
+# If true, process shows but don't actually add to Sonarr
+dry_run: false
