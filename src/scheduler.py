@@ -2,7 +2,7 @@
 
 import logging
 import threading
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Callable, Optional
 
 logger = logging.getLogger(__name__)
@@ -134,7 +134,7 @@ class Scheduler:
         while not self._stop_event.is_set():
             # Calculate next run time
             with self._lock:
-                self._next_run = datetime.utcnow() + self.interval
+                self._next_run = datetime.now(UTC) + self.interval
 
             # Wait for interval or trigger
             triggered = self._trigger_event.wait(

@@ -1,7 +1,7 @@
 """Tests for database module."""
 
 import pytest
-from datetime import datetime
+from datetime import UTC, datetime
 
 from src.models import ProcessingStatus, Show
 
@@ -59,7 +59,7 @@ def test_database_get_status_counts(test_db, sample_show):
         tvmaze_id=2,
         title="Show 2",
         processing_status=ProcessingStatus.FILTERED,
-        last_checked=datetime.utcnow()
+        last_checked=datetime.now(UTC)
     )
     test_db.upsert_show(show2)
 
@@ -100,9 +100,9 @@ def test_database_mark_show_filtered(test_db, sample_show):
 @pytest.mark.unit
 def test_database_get_highest_tvmaze_id(test_db):
     """Test getting highest TVMaze ID."""
-    show1 = Show(tvmaze_id=100, title="Show 1", last_checked=datetime.utcnow())
-    show2 = Show(tvmaze_id=200, title="Show 2", last_checked=datetime.utcnow())
-    show3 = Show(tvmaze_id=150, title="Show 3", last_checked=datetime.utcnow())
+    show1 = Show(tvmaze_id=100, title="Show 1", last_checked=datetime.now(UTC))
+    show2 = Show(tvmaze_id=200, title="Show 2", last_checked=datetime.now(UTC))
+    show3 = Show(tvmaze_id=150, title="Show 3", last_checked=datetime.now(UTC))
 
     test_db.upsert_show(show1)
     test_db.upsert_show(show2)
@@ -115,8 +115,8 @@ def test_database_get_highest_tvmaze_id(test_db):
 @pytest.mark.unit
 def test_database_get_total_count(test_db):
     """Test getting total show count."""
-    show1 = Show(tvmaze_id=1, title="Show 1", last_checked=datetime.utcnow())
-    show2 = Show(tvmaze_id=2, title="Show 2", last_checked=datetime.utcnow())
+    show1 = Show(tvmaze_id=1, title="Show 1", last_checked=datetime.now(UTC))
+    show2 = Show(tvmaze_id=2, title="Show 2", last_checked=datetime.now(UTC))
 
     test_db.upsert_show(show1)
     test_db.upsert_show(show2)
@@ -132,19 +132,19 @@ def test_database_get_shows_by_status(test_db):
         tvmaze_id=1,
         title="Show 1",
         processing_status=ProcessingStatus.FILTERED,
-        last_checked=datetime.utcnow()
+        last_checked=datetime.now(UTC)
     )
     show2 = Show(
         tvmaze_id=2,
         title="Show 2",
         processing_status=ProcessingStatus.FILTERED,
-        last_checked=datetime.utcnow()
+        last_checked=datetime.now(UTC)
     )
     show3 = Show(
         tvmaze_id=3,
         title="Show 3",
         processing_status=ProcessingStatus.ADDED,
-        last_checked=datetime.utcnow()
+        last_checked=datetime.now(UTC)
     )
 
     test_db.upsert_show(show1)
@@ -203,7 +203,7 @@ def test_database_upsert_shows_bulk(test_db):
         show = Show(
             tvmaze_id=i + 1,
             title=f"Show {i + 1}",
-            last_checked=datetime.utcnow()
+            last_checked=datetime.now(UTC)
         )
         shows.append(show)
 
@@ -228,11 +228,11 @@ def test_database_get_shows_for_retry(test_db, sample_show_no_tvdb):
 
     # Insert show with retry in the past
     test_db.upsert_show(sample_show_no_tvdb)
-    past_time = datetime.utcnow() - timedelta(days=1)
+    past_time = datetime.now(UTC) - timedelta(days=1)
     test_db.mark_show_pending_tvdb(sample_show_no_tvdb.tvmaze_id, retry_after=past_time)
 
     # Get shows ready for retry
-    shows = test_db.get_shows_for_retry(now=datetime.utcnow(), max_retries=4)
+    shows = test_db.get_shows_for_retry(now=datetime.now(UTC), max_retries=4)
 
     assert len(shows) == 1
     assert shows[0].tvmaze_id == sample_show_no_tvdb.tvmaze_id
@@ -245,11 +245,11 @@ def test_database_get_shows_for_retry_not_ready(test_db, sample_show_no_tvdb):
 
     # Insert show with retry in the future
     test_db.upsert_show(sample_show_no_tvdb)
-    future_time = datetime.utcnow() + timedelta(days=1)
+    future_time = datetime.now(UTC) + timedelta(days=1)
     test_db.mark_show_pending_tvdb(sample_show_no_tvdb.tvmaze_id, retry_after=future_time)
 
     # Should not return shows not ready yet
-    shows = test_db.get_shows_for_retry(now=datetime.utcnow(), max_retries=4)
+    shows = test_db.get_shows_for_retry(now=datetime.now(UTC), max_retries=4)
 
     assert len(shows) == 0
 
@@ -264,7 +264,7 @@ def test_database_get_all_filtered_shows(test_db):
             title=f"Show {i + 1}",
             processing_status=ProcessingStatus.FILTERED,
             filter_reason="Test reason",
-            last_checked=datetime.utcnow()
+            last_checked=datetime.now(UTC)
         )
         test_db.upsert_show(show)
 
@@ -281,17 +281,17 @@ def test_database_get_filter_reason_counts(test_db):
     show1 = Show(
         tvmaze_id=1,
         title="Show 1",
-        last_checked=datetime.utcnow()
+        last_checked=datetime.now(UTC)
     )
     show2 = Show(
         tvmaze_id=2,
         title="Show 2",
-        last_checked=datetime.utcnow()
+        last_checked=datetime.now(UTC)
     )
     show3 = Show(
         tvmaze_id=3,
         title="Show 3",
-        last_checked=datetime.utcnow()
+        last_checked=datetime.now(UTC)
     )
 
     test_db.upsert_show(show1)
@@ -313,7 +313,7 @@ def test_database_get_filter_reason_counts(test_db):
 def test_database_get_retry_counts(test_db, sample_show_no_tvdb):
     """Test getting retry count statistics."""
     test_db.upsert_show(sample_show_no_tvdb)
-    test_db.mark_show_pending_tvdb(sample_show_no_tvdb.tvmaze_id, retry_after=datetime.utcnow())
+    test_db.mark_show_pending_tvdb(sample_show_no_tvdb.tvmaze_id, retry_after=datetime.now(UTC))
     test_db.increment_retry_count(sample_show_no_tvdb.tvmaze_id)
 
     counts = test_db.get_retry_counts()
@@ -330,13 +330,13 @@ def test_database_get_tvmaze_ids_updated_since(test_db):
         tvmaze_id=1,
         title="Show 1",
         tvmaze_updated_at=1704067200,  # Newer
-        last_checked=datetime.utcnow()
+        last_checked=datetime.now(UTC)
     )
     show2 = Show(
         tvmaze_id=2,
         title="Show 2",
         tvmaze_updated_at=1704000000,  # Older
-        last_checked=datetime.utcnow()
+        last_checked=datetime.now(UTC)
     )
 
     test_db.upsert_show(show1)
@@ -356,7 +356,7 @@ def test_database_mark_show_pending_tvdb(test_db, sample_show_no_tvdb):
 
     test_db.upsert_show(sample_show_no_tvdb)
 
-    retry_after = datetime.utcnow() + timedelta(weeks=1)
+    retry_after = datetime.now(UTC) + timedelta(weeks=1)
     test_db.mark_show_pending_tvdb(sample_show_no_tvdb.tvmaze_id, retry_after=retry_after)
 
     retrieved = test_db.get_show(sample_show_no_tvdb.tvmaze_id)
@@ -391,7 +391,7 @@ def test_database_update_show_status(test_db, sample_show):
 def test_database_increment_retry_count(test_db, sample_show_no_tvdb):
     """Test incrementing retry count."""
     test_db.upsert_show(sample_show_no_tvdb)
-    test_db.mark_show_pending_tvdb(sample_show_no_tvdb.tvmaze_id, retry_after=datetime.utcnow())
+    test_db.mark_show_pending_tvdb(sample_show_no_tvdb.tvmaze_id, retry_after=datetime.now(UTC))
 
     # Increment once
     new_count = test_db.increment_retry_count(sample_show_no_tvdb.tvmaze_id)
@@ -414,7 +414,7 @@ def test_database_get_shows_by_status_with_pagination(test_db):
             tvmaze_id=i + 1,
             title=f"Show {i + 1}",
             processing_status=ProcessingStatus.FILTERED,
-            last_checked=datetime.utcnow()
+            last_checked=datetime.now(UTC)
         )
         test_db.upsert_show(show)
 

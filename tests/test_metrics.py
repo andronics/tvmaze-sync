@@ -1,6 +1,6 @@
 """Tests for Prometheus metrics."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from unittest.mock import patch
 
 import pytest
@@ -52,7 +52,7 @@ def test_update_db_metrics_retry_counts(test_db, sample_show):
     test_db.upsert_show(sample_show)
     test_db.mark_show_pending_tvdb(
         sample_show.tvmaze_id,
-        retry_after=datetime.utcnow() + timedelta(days=1)
+        retry_after=datetime.now(UTC) + timedelta(days=1)
     )
     test_db.increment_retry_count(sample_show.tvmaze_id)
 
@@ -83,7 +83,7 @@ def test_record_sync_complete_success(sync_stats):
     sync_stats.shows_exists = 5
     sync_stats.shows_skipped = 3
     sync_stats.shows_failed = 2
-    sync_stats.completed_at = datetime.utcnow()
+    sync_stats.completed_at = datetime.now(UTC)
 
     record_sync_complete(sync_stats, success=True)
 
@@ -94,7 +94,7 @@ def test_record_sync_complete_success(sync_stats):
 
 def test_record_sync_complete_failure(sync_stats):
     """Test recording failed sync."""
-    sync_stats.completed_at = datetime.utcnow()
+    sync_stats.completed_at = datetime.now(UTC)
 
     record_sync_complete(sync_stats, success=False)
 
@@ -106,7 +106,7 @@ def test_record_sync_complete_counters(sync_stats):
     """Test that counters are incremented."""
     sync_stats.shows_added = 5
     sync_stats.shows_filtered = 10
-    sync_stats.completed_at = datetime.utcnow()
+    sync_stats.completed_at = datetime.now(UTC)
 
     # Record twice to test increment
     record_sync_complete(sync_stats, success=True)
@@ -118,7 +118,7 @@ def test_record_sync_complete_counters(sync_stats):
 
 def test_record_sync_complete_timestamp(sync_stats):
     """Test that timestamp is recorded."""
-    now = datetime.utcnow()
+    now = datetime.now(UTC)
     sync_stats.completed_at = now
 
     record_sync_complete(sync_stats, success=True)

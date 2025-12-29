@@ -2,7 +2,7 @@
 
 import time
 import threading
-from datetime import timedelta, datetime
+from datetime import UTC, timedelta, datetime
 from unittest.mock import Mock
 
 import pytest
@@ -114,7 +114,7 @@ def test_scheduler_next_run_property(mock_sync_func):
     next_run = scheduler.next_run
 
     assert isinstance(next_run, datetime)
-    assert next_run > datetime.utcnow()
+    assert next_run > datetime.now(UTC)
 
     # Cleanup
     scheduler.stop(timeout=2)
