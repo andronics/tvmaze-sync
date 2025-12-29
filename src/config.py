@@ -354,18 +354,18 @@ def load_config(path: Path | None = None) -> Config:
             abandon_after=sync_data.get("abandon_after", "1y"),
         )
 
-        # Global excludes
-        exclude_data = config_dict.get("exclude", {})
+        # Global excludes (handle None from empty YAML value)
+        exclude_data = config_dict.get("exclude") or {}
         global_exclude = GlobalExclude(
-            genres=exclude_data.get("genres", []),
-            types=exclude_data.get("types", []),
-            languages=exclude_data.get("languages", []),
-            countries=exclude_data.get("countries", []),
-            networks=exclude_data.get("networks", []),
+            genres=exclude_data.get("genres") or [],
+            types=exclude_data.get("types") or [],
+            languages=exclude_data.get("languages") or [],
+            countries=exclude_data.get("countries") or [],
+            networks=exclude_data.get("networks") or [],
         )
 
-        # Selections
-        selections_data = config_dict.get("selections", [])
+        # Selections (handle None from empty YAML value)
+        selections_data = config_dict.get("selections") or []
         selections = []
         for sel_data in selections_data:
             # Parse nested date ranges
