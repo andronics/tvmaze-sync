@@ -17,14 +17,14 @@ tvmaze:
 # Sync Cycle Configuration
 sync:
   # How often to run sync cycles
-  # Format: Xh (hours), Xm (minutes), Xd (days), Xw (weeks)
+  # Format: Xs (seconds), Xm (minutes), Xh (hours), Xd (days), Xw (weeks), Xy (years)
   poll_interval: "6h"
 
   # How long to wait before retrying shows with pending TVDB IDs
   retry_delay: "1w"
 
-  # Maximum retry attempts for pending_tvdb shows
-  max_retries: 4
+  # Time before abandoning shows without TVDB IDs
+  abandon_after: "1y"
 
 # Show Filtering Configuration
 filters:

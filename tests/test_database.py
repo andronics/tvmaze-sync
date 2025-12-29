@@ -231,8 +231,8 @@ def test_database_get_shows_for_retry(test_db, sample_show_no_tvdb):
     past_time = datetime.now(UTC) - timedelta(days=1)
     test_db.mark_show_pending_tvdb(sample_show_no_tvdb.tvmaze_id, retry_after=past_time)
 
-    # Get shows ready for retry
-    shows = test_db.get_shows_for_retry(now=datetime.now(UTC), max_retries=4)
+    # Get shows ready for retry (abandon_after=1 year)
+    shows = test_db.get_shows_for_retry(now=datetime.now(UTC), abandon_after=timedelta(days=365))
 
     assert len(shows) == 1
     assert shows[0].tvmaze_id == sample_show_no_tvdb.tvmaze_id
@@ -249,7 +249,7 @@ def test_database_get_shows_for_retry_not_ready(test_db, sample_show_no_tvdb):
     test_db.mark_show_pending_tvdb(sample_show_no_tvdb.tvmaze_id, retry_after=future_time)
 
     # Should not return shows not ready yet
-    shows = test_db.get_shows_for_retry(now=datetime.now(UTC), max_retries=4)
+    shows = test_db.get_shows_for_retry(now=datetime.now(UTC), abandon_after=timedelta(days=365))
 
     assert len(shows) == 0
 

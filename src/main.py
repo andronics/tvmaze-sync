@@ -63,7 +63,7 @@ def setup_logging(logging_config) -> None:
 
 
 def parse_duration(duration_str: str) -> timedelta:
-    """Parse duration string like '6h', '30m', '1d', '1w' to timedelta."""
+    """Parse duration string like '6h', '30m', '1d', '1w', '1y' to timedelta."""
     units = {
         's': 'seconds',
         'm': 'minutes',
@@ -78,8 +78,12 @@ def parse_duration(duration_str: str) -> timedelta:
     value = int(duration_str[:-1])
     unit = duration_str[-1]
 
+    # Handle years specially (timedelta doesn't support years directly)
+    if unit == 'y':
+        return timedelta(days=value * 365)
+
     if unit not in units:
-        raise ValueError(f"Invalid duration unit: {unit}. Use s, m, h, d, or w")
+        raise ValueError(f"Invalid duration unit: {unit}. Use s, m, h, d, w, or y")
 
     return timedelta(**{units[unit]: value})
 
@@ -352,7 +356,18 @@ def check_for_new_shows(db, state, config, sonarr, tvmaze, processor, stats):
 def retry_pending_tvdb(db, state, config, sonarr, tvmaze, processor, stats):
     """Retry shows pending TVDB ID."""
     now = datetime.now(UTC)
-    shows_to_retry = db.get_shows_for_retry(now, config.sync.max_retries)
+    abandon_after = parse_duration(config.sync.abandon_after)
+
+    # First, mark shows that have exceeded abandon_after as failed
+    shows_to_abandon = db.get_shows_to_abandon(now, abandon_after)
+    for show in shows_to_abandon:
+        logger.warning(
+            f"Show {show.title} exceeded abandon_after ({config.sync.abandon_after}), marking as failed"
+        )
+        db.mark_show_failed(show.tvmaze_id, f"No TVDB ID after {config.sync.abandon_after}")
+
+    # Then get shows ready for retry
+    shows_to_retry = db.get_shows_for_retry(now, abandon_after)
 
     if not shows_to_retry:
         return
@@ -365,7 +380,8 @@ def retry_pending_tvdb(db, state, config, sonarr, tvmaze, processor, stats):
             show_data = tvmaze.get_show(show.tvmaze_id)
             updated_show = Show.from_tvmaze_response(show_data)
 
-            # Update metadata in database
+            # Preserve pending_since and retry_count from original show
+            updated_show.pending_since = show.pending_since
             updated_show.retry_count = show.retry_count
             updated_show.last_checked = now
             db.upsert_show(updated_show)
@@ -376,16 +392,10 @@ def retry_pending_tvdb(db, state, config, sonarr, tvmaze, processor, stats):
                 db.increment_retry_count(show.tvmaze_id)
                 process_single_show(db, config, sonarr, processor, updated_show, stats)
             else:
-                # Still no TVDB ID
+                # Still no TVDB ID - schedule next retry
                 db.increment_retry_count(show.tvmaze_id)
-                retry_count = db.get_show(show.tvmaze_id).retry_count
-
-                if retry_count >= config.sync.max_retries:
-                    logger.warning(f"Show {show.title} exceeded max retries, marking as failed")
-                    db.mark_show_failed(show.tvmaze_id, "No TVDB ID after max retries")
-                else:
-                    retry_after = now + parse_duration(config.sync.retry_delay)
-                    db.mark_show_pending_tvdb(show.tvmaze_id, retry_after)
+                retry_after = now + parse_duration(config.sync.retry_delay)
+                db.mark_show_pending_tvdb(show.tvmaze_id, retry_after, now)
 
         except TVMazeNotFoundError:
             logger.warning(f"Show {show.tvmaze_id} no longer exists on TVMaze")

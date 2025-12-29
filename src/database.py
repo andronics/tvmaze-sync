@@ -2,7 +2,7 @@
 
 import logging
 import sqlite3
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Iterator, Optional
 
@@ -10,7 +10,7 @@ from .models import ProcessingStatus, Show
 
 logger = logging.getLogger(__name__)
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 SCHEMA = """
 -- Shows table
@@ -37,6 +37,7 @@ CREATE TABLE IF NOT EXISTS shows (
     tvmaze_updated_at INTEGER,
     retry_after DATETIME,
     retry_count INTEGER DEFAULT 0,
+    pending_since DATETIME,
     error_message TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -50,6 +51,7 @@ CREATE INDEX IF NOT EXISTS idx_country ON shows(country);
 CREATE INDEX IF NOT EXISTS idx_type ON shows(type);
 CREATE INDEX IF NOT EXISTS idx_premiered ON shows(premiered);
 CREATE INDEX IF NOT EXISTS idx_retry_after ON shows(retry_after);
+CREATE INDEX IF NOT EXISTS idx_pending_since ON shows(pending_since);
 CREATE INDEX IF NOT EXISTS idx_tvmaze_updated_at ON shows(tvmaze_updated_at);
 
 -- Update trigger
@@ -90,8 +92,20 @@ def get_schema_version(conn: sqlite3.Connection) -> int:
 
 def migrate_schema(conn: sqlite3.Connection, from_version: int) -> None:
     """Run schema migrations."""
-    # Future migrations would go here
-    logger.info(f"No migrations needed from version {from_version}")
+    if from_version < 2:
+        # Migration 2: Add pending_since for time-based abandonment
+        logger.info("Migrating to schema v2: adding pending_since column")
+        conn.execute("ALTER TABLE shows ADD COLUMN pending_since DATETIME")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_pending_since ON shows(pending_since)")
+        # Backfill: use retry_after as approximate pending_since for existing pending shows
+        conn.execute("""
+            UPDATE shows
+            SET pending_since = retry_after
+            WHERE processing_status = 'pending_tvdb' AND pending_since IS NULL
+        """)
+        conn.execute("UPDATE schema_version SET version = 2")
+        conn.commit()
+        logger.info("Migrated to schema v2: added pending_since column")
 
 
 class Database:
@@ -226,24 +240,46 @@ class Database:
         cursor = self.conn.execute(query, params)
         return [Show.from_db_row(row) for row in cursor.fetchall()]
 
-    def get_shows_for_retry(self, now: datetime, max_retries: int) -> list[Show]:
+    def get_shows_for_retry(self, now: datetime, abandon_after: timedelta) -> list[Show]:
         """
         Get shows ready for retry.
 
         Returns shows where:
         - processing_status = 'pending_tvdb'
         - retry_after <= now
-        - retry_count < max_retries
+        - pending_since > (now - abandon_after) [not yet abandoned]
         """
+        abandon_cutoff = (now - abandon_after).isoformat()
         query = """
             SELECT * FROM shows
             WHERE processing_status = ?
             AND retry_after <= ?
-            AND retry_count < ?
+            AND (pending_since IS NULL OR pending_since > ?)
         """
         cursor = self.conn.execute(
             query,
-            (ProcessingStatus.PENDING_TVDB, now.isoformat(), max_retries)
+            (ProcessingStatus.PENDING_TVDB, now.isoformat(), abandon_cutoff)
+        )
+        return [Show.from_db_row(row) for row in cursor.fetchall()]
+
+    def get_shows_to_abandon(self, now: datetime, abandon_after: timedelta) -> list[Show]:
+        """
+        Get shows that have exceeded abandon_after time.
+
+        Returns shows where:
+        - processing_status = 'pending_tvdb'
+        - pending_since <= (now - abandon_after)
+        """
+        abandon_cutoff = (now - abandon_after).isoformat()
+        query = """
+            SELECT * FROM shows
+            WHERE processing_status = ?
+            AND pending_since IS NOT NULL
+            AND pending_since <= ?
+        """
+        cursor = self.conn.execute(
+            query,
+            (ProcessingStatus.PENDING_TVDB, abandon_cutoff)
         )
         return [Show.from_db_row(row) for row in cursor.fetchall()]
 
@@ -383,18 +419,26 @@ class Database:
     def mark_show_pending_tvdb(
         self,
         tvmaze_id: int,
-        retry_after: datetime
+        retry_after: datetime,
+        now: datetime | None = None
     ) -> None:
-        """Mark show as pending TVDB ID with retry time."""
+        """Mark show as pending TVDB ID with retry time.
+
+        Sets pending_since on first call (uses COALESCE to preserve existing value).
+        """
+        if now is None:
+            now = datetime.now(UTC)
         self.conn.execute("""
             UPDATE shows SET
                 processing_status = ?,
                 retry_after = ?,
+                pending_since = COALESCE(pending_since, ?),
                 error_message = ?
             WHERE tvmaze_id = ?
         """, (
             ProcessingStatus.PENDING_TVDB,
             retry_after.isoformat(),
+            now.isoformat(),
             "No TVDB ID available",
             tvmaze_id
         ))

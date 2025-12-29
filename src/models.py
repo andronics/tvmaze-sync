@@ -63,6 +63,7 @@ class Show:
     tvmaze_updated_at: Optional[int] = None  # Unix timestamp
     retry_after: Optional[datetime] = None
     retry_count: int = 0
+    pending_since: Optional[datetime] = None  # When first marked as pending_tvdb
     error_message: Optional[str] = None
 
     @classmethod
@@ -164,6 +165,13 @@ class Show:
             except (ValueError, TypeError):
                 pass
 
+        pending_since = None
+        if row["pending_since"]:
+            try:
+                pending_since = datetime.fromisoformat(row["pending_since"])
+            except (ValueError, TypeError):
+                pass
+
         return cls(
             tvmaze_id=row["tvmaze_id"],
             tvdb_id=row["tvdb_id"],
@@ -187,6 +195,7 @@ class Show:
             tvmaze_updated_at=row["tvmaze_updated_at"],
             retry_after=retry_after,
             retry_count=row["retry_count"] or 0,
+            pending_since=pending_since,
             error_message=row["error_message"],
         )
 
@@ -215,6 +224,7 @@ class Show:
             "tvmaze_updated_at": self.tvmaze_updated_at,
             "retry_after": self.retry_after.isoformat() if self.retry_after else None,
             "retry_count": self.retry_count,
+            "pending_since": self.pending_since.isoformat() if self.pending_since else None,
             "error_message": self.error_message,
         }
 

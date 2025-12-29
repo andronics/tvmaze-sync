@@ -110,7 +110,7 @@ CREATE TABLE shows (
     tvmaze_id INTEGER PRIMARY KEY,
     tvdb_id INTEGER,
     imdb_id TEXT,
-    
+
     -- Show metadata (for filtering)
     title TEXT NOT NULL,
     language TEXT,
@@ -123,20 +123,20 @@ CREATE TABLE shows (
     web_channel TEXT,
     genres TEXT,            -- JSON array stored as text
     runtime INTEGER,
-    
+
     -- Processing state
     processing_status TEXT NOT NULL DEFAULT 'pending',
     filter_reason TEXT,     -- Why it was filtered (for metrics)
     sonarr_series_id INTEGER,
     added_to_sonarr_at DATETIME,
-    
+
     -- Sync metadata
     last_checked DATETIME NOT NULL,
     tvmaze_updated_at INTEGER,  -- Unix timestamp from TVMaze
     retry_after DATETIME,
     retry_count INTEGER DEFAULT 0,
     error_message TEXT,
-    
+
     -- Record timestamps
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -202,7 +202,7 @@ tvmaze:
 sync:
   poll_interval: "6h"                    # How often to sync
   retry_delay: "1w"                      # Retry pending_tvdb after
-  max_retries: 4                         # Max retry attempts
+  abandon_after: "1y"                    # Abandon pending_tvdb after
 
 filters:
   genres:
@@ -267,7 +267,7 @@ TVMAZE_RATE_LIMIT=20
 TVMAZE_UPDATE_WINDOW=week
 SYNC_POLL_INTERVAL=6h
 SYNC_RETRY_DELAY=1w
-SYNC_MAX_RETRIES=4
+SYNC_ABANDON_AFTER=1y
 FILTERS_GENRES_EXCLUDE=Reality,Talk Show,Game Show
 FILTERS_LANGUAGES_INCLUDE=English
 SONARR_URL=http://sonarr:8989

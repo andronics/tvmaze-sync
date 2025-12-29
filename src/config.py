@@ -33,7 +33,7 @@ class SyncConfig:
 
     poll_interval: str = "6h"
     retry_delay: str = "1w"
-    max_retries: int = 4
+    abandon_after: str = "1y"
 
 
 @dataclass(frozen=True)
@@ -235,7 +235,7 @@ def apply_env_overrides(config_dict: dict) -> dict:
         # Sync
         "SYNC_POLL_INTERVAL": ["sync", "poll_interval"],
         "SYNC_RETRY_DELAY": ["sync", "retry_delay"],
-        "SYNC_MAX_RETRIES": ["sync", "max_retries"],
+        "SYNC_ABANDON_AFTER": ["sync", "abandon_after"],
         # Filters
         "FILTERS_GENRES_EXCLUDE": ["filters", "genres", "exclude"],
         "FILTERS_TYPES_INCLUDE": ["filters", "types", "include"],
@@ -273,7 +273,7 @@ def apply_env_overrides(config_dict: dict) -> dict:
             if env_var.endswith("_EXCLUDE") or env_var.endswith("_INCLUDE") or env_var == "SONARR_TAGS":
                 # Comma-separated list
                 value = [item.strip() for item in value.split(",") if item.strip()]
-            elif env_var in ["SYNC_MAX_RETRIES", "TVMAZE_RATE_LIMIT", "SERVER_PORT", "FILTERS_MIN_RUNTIME"]:
+            elif env_var in ["TVMAZE_RATE_LIMIT", "SERVER_PORT", "FILTERS_MIN_RUNTIME"]:
                 # Integer
                 try:
                     value = int(value)
@@ -345,7 +345,7 @@ def load_config(path: Path | None = None) -> Config:
         sync = SyncConfig(
             poll_interval=sync_data.get("poll_interval", "6h"),
             retry_delay=sync_data.get("retry_delay", "1w"),
-            max_retries=sync_data.get("max_retries", 4),
+            abandon_after=sync_data.get("abandon_after", "1y"),
         )
 
         # Filters

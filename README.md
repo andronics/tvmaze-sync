@@ -104,9 +104,9 @@ tvmaze:
   update_window: "week"              # day, week, or month
 
 sync:
-  poll_interval: "6h"                # How often to sync (s, m, h, d, w)
+  poll_interval: "6h"                # How often to sync (s, m, h, d, w, y)
   retry_delay: "1w"                  # Retry pending_tvdb shows after this delay
-  max_retries: 4                     # Max retry attempts for pending_tvdb
+  abandon_after: "1y"                # Abandon pending_tvdb shows after this time
 
 filters:
   genres:
@@ -175,7 +175,7 @@ All configuration options can be set via environment variables using `SECTION_KE
 | `TVMAZE_UPDATE_WINDOW` | Update check window | `week` |
 | `SYNC_POLL_INTERVAL` | Sync frequency | `6h` |
 | `SYNC_RETRY_DELAY` | Retry pending_tvdb after | `1w` |
-| `SYNC_MAX_RETRIES` | Max retry attempts | `4` |
+| `SYNC_ABANDON_AFTER` | Abandon pending_tvdb after | `1y` |
 | `FILTERS_GENRES_EXCLUDE` | Comma-separated genres | (none) |
 | `FILTERS_LANGUAGES_INCLUDE` | Comma-separated languages | (none) |
 | `FILTERS_COUNTRIES_INCLUDE` | Comma-separated countries | (none) |
@@ -370,8 +370,8 @@ docker logs -f tvmaze-sync
 Some shows don't have TVDB IDs in TVMaze:
 - Marked as `pending_tvdb`
 - Retried weekly (configurable via `SYNC_RETRY_DELAY`)
-- Max 4 retry attempts (configurable via `SYNC_MAX_RETRIES`)
-- After max retries, marked as `failed`
+- Abandoned after 1 year (configurable via `SYNC_ABANDON_AFTER`)
+- After abandon time, marked as `failed`
 
 ```bash
 # Check pending shows
