@@ -29,7 +29,7 @@ def create_app(
     @app.route('/health')
     def health():
         """Liveness probe."""
-        return jsonify({"status": "ok"})
+        return jsonify({"status": "healthy"})
 
     @app.route('/ready')
     def ready():
@@ -40,17 +40,16 @@ def create_app(
         - Database accessible
         - Sonarr reachable
         """
-        checks = {
-            "database": db.is_healthy(),
-            "sonarr": sonarr_client.is_healthy(),
-        }
+        database_healthy = db.is_healthy()
+        sonarr_healthy = sonarr_client.is_healthy()
 
-        all_healthy = all(checks.values())
+        all_healthy = database_healthy and sonarr_healthy
         status_code = 200 if all_healthy else 503
 
         return jsonify({
-            "status": "ready" if all_healthy else "not_ready",
-            "checks": checks
+            "status": "ready" if all_healthy else "not ready",
+            "database": database_healthy,
+            "sonarr": sonarr_healthy
         }), status_code
 
     @app.route('/metrics')
@@ -65,7 +64,7 @@ def create_app(
         if scheduler.is_running:
             return jsonify({
                 "status": "already_running",
-                "message": "Sync cycle already in progress"
+                "error": "Already running - sync cycle in progress"
             }), 409
 
         scheduler.trigger_now()
@@ -77,6 +76,7 @@ def create_app(
         return jsonify({
             "last_full_sync": state.last_full_sync.isoformat() if state.last_full_sync else None,
             "last_incremental_sync": state.last_incremental_sync.isoformat() if state.last_incremental_sync else None,
+            "last_tvmaze_page": state.last_tvmaze_page,
             "highest_tvmaze_id": state.highest_tvmaze_id,
             "next_scheduled_run": scheduler.next_run.isoformat() if scheduler.next_run else None,
             "sync_running": scheduler.is_running,
@@ -108,12 +108,7 @@ def create_app(
             # If no status filter, limit results
             shows = []
 
-        return jsonify({
-            "shows": [s.to_dict() for s in shows],
-            "count": len(shows),
-            "limit": limit,
-            "offset": offset
-        })
+        return jsonify([s.to_dict() for s in shows])
 
     @app.route('/refilter', methods=['POST'])
     def refilter():
@@ -122,7 +117,7 @@ def create_app(
             count = re_evaluate_filtered_shows(db, processor)
             return jsonify({
                 "status": "complete",
-                "shows_re_evaluated": count
+                "refiltered": count
             })
         except Exception as e:
             logger.error(f"Refilter failed: {e}")
