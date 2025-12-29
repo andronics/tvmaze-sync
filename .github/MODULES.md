@@ -327,7 +327,7 @@ class Config:
     storage: StorageConfig
     logging: LoggingConfig
     server: ServerConfig
-    dry_run: bool = False
+    dry_run: bool = True  # Safe default
 ```
 
 ---

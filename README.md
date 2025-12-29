@@ -149,7 +149,7 @@ server:
   enabled: true
   port: 8080
 
-dry_run: false                       # Test mode - don't actually add to Sonarr
+dry_run: false                       # Defaults to true - set false when ready to add shows
 ```
 
 ## Environment Variables

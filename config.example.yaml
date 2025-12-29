@@ -131,5 +131,5 @@ server:
   port: 8080
 
 # Dry Run Mode
-# If true, process shows but don't actually add to Sonarr
-dry_run: false
+# Defaults to true for safety - set to false when ready to add shows to Sonarr
+dry_run: false  # Set to true to test without adding shows

@@ -139,7 +139,7 @@ class Config:
     storage: StorageConfig
     logging: LoggingConfig
     server: ServerConfig
-    dry_run: bool = False
+    dry_run: bool = True  # Safe default - must explicitly disable
 
 
 def resolve_env_value(value: str) -> str:
@@ -414,8 +414,8 @@ def load_config(path: Path | None = None) -> Config:
             port=server_data.get("port", 8080),
         )
 
-        # Dry run
-        dry_run = config_dict.get("dry_run", False)
+        # Dry run - defaults to True for safety
+        dry_run = config_dict.get("dry_run", True)
 
         config = Config(
             tvmaze=tvmaze,

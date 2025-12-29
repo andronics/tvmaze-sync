@@ -240,7 +240,7 @@ server:
   enabled: true
   port: 8080
 
-dry_run: false
+dry_run: false  # Defaults to true - set false when ready
 ```
 
 ### Environment Variable Resolution
