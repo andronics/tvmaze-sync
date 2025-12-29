@@ -10,7 +10,7 @@ from .models import ProcessingStatus, Show
 
 logger = logging.getLogger(__name__)
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 SCHEMA = """
 -- Shows table
@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS shows (
     web_channel TEXT,
     genres TEXT,
     runtime INTEGER,
+    rating REAL,
     processing_status TEXT NOT NULL DEFAULT 'pending',
     filter_reason TEXT,
     sonarr_series_id INTEGER,
@@ -106,6 +107,14 @@ def migrate_schema(conn: sqlite3.Connection, from_version: int) -> None:
         conn.execute("UPDATE schema_version SET version = 2")
         conn.commit()
         logger.info("Migrated to schema v2: added pending_since column")
+
+    if from_version < 3:
+        # Migration 3: Add rating column for selection filtering
+        logger.info("Migrating to schema v3: adding rating column")
+        conn.execute("ALTER TABLE shows ADD COLUMN rating REAL")
+        conn.execute("UPDATE schema_version SET version = 3")
+        conn.commit()
+        logger.info("Migrated to schema v3: added rating column")
 
 
 class Database:

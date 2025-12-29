@@ -51,6 +51,7 @@ class Show:
     web_channel: Optional[str] = None
     genres: list[str] = field(default_factory=list)
     runtime: Optional[int] = None
+    rating: Optional[float] = None  # TVMaze rating.average
 
     # Processing state
     processing_status: str = ProcessingStatus.PENDING
@@ -99,6 +100,10 @@ class Show:
             except (ValueError, TypeError):
                 pass
 
+        # Extract rating
+        rating_data = data.get("rating", {})
+        rating = rating_data.get("average") if rating_data else None
+
         return cls(
             tvmaze_id=data["id"],
             tvdb_id=tvdb_id,
@@ -114,6 +119,7 @@ class Show:
             web_channel=web_channel_data.get("name") if web_channel_data else None,
             genres=data.get("genres", []),
             runtime=data.get("runtime"),
+            rating=rating,
             tvmaze_updated_at=data.get("updated"),
         )
 
@@ -187,6 +193,7 @@ class Show:
             web_channel=row["web_channel"],
             genres=genres,
             runtime=row["runtime"],
+            rating=row["rating"],
             processing_status=row["processing_status"],
             filter_reason=row["filter_reason"],
             sonarr_series_id=row["sonarr_series_id"],
@@ -216,6 +223,7 @@ class Show:
             "web_channel": self.web_channel,
             "genres": json.dumps(self.genres) if self.genres else None,
             "runtime": self.runtime,
+            "rating": self.rating,
             "processing_status": self.processing_status,
             "filter_reason": self.filter_reason,
             "sonarr_series_id": self.sonarr_series_id,
@@ -245,6 +253,7 @@ class Show:
             "web_channel": self.web_channel,
             "genres": self.genres,
             "runtime": self.runtime,
+            "rating": self.rating,
             "processing_status": self.processing_status,
             "filter_reason": self.filter_reason,
             "sonarr_series_id": self.sonarr_series_id,
