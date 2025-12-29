@@ -80,9 +80,27 @@ class Scheduler:
         with self._lock:
             return self._running
 
+    def _safe_log(self, level: str, message: str, exc_info: bool = False) -> None:
+        """
+        Safely log a message, handling closed stream errors.
+
+        During shutdown (especially in tests), logging streams may be closed
+        before background threads stop. This method catches ValueError exceptions
+        that occur when trying to write to closed streams and silently ignores them.
+        """
+        try:
+            log_func = getattr(logger, level)
+            if exc_info:
+                log_func(message, exc_info=True)
+            else:
+                log_func(message)
+        except (ValueError, OSError):
+            # Logging stream closed during shutdown - ignore silently
+            pass
+
     def _run_loop(self) -> None:
         """Main scheduler loop."""
-        logger.info("Scheduler loop started")
+        self._safe_log("info", "Scheduler loop started")
 
         while not self._stop_event.is_set():
             # Calculate next run time
@@ -99,9 +117,9 @@ class Scheduler:
                 break
 
             if triggered:
-                logger.info("Running sync cycle (manually triggered)")
+                self._safe_log("info", "Running sync cycle (manually triggered)")
             else:
-                logger.info("Running sync cycle (scheduled)")
+                self._safe_log("info", "Running sync cycle (scheduled)")
 
             # Run sync
             with self._lock:
@@ -110,9 +128,9 @@ class Scheduler:
             try:
                 self.sync_func()
             except Exception as e:
-                logger.exception("Sync cycle failed")
+                self._safe_log("exception", "Sync cycle failed", exc_info=True)
             finally:
                 with self._lock:
                     self._running = False
 
-        logger.info("Scheduler loop exited")
+        self._safe_log("info", "Scheduler loop exited")
