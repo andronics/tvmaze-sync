@@ -63,29 +63,43 @@ def setup_logging(logging_config) -> None:
 
 
 def parse_duration(duration_str: str) -> timedelta:
-    """Parse duration string like '6h', '30m', '1d', '1w', '1y' to timedelta."""
-    units = {
-        's': 'seconds',
-        'm': 'minutes',
-        'h': 'hours',
-        'd': 'days',
-        'w': 'weeks'
-    }
+    """Parse duration string like '6h', '30m', '1d', '1w', '1y' to timedelta.
 
+    Supported units:
+        s  - seconds
+        m  - minutes
+        h  - hours
+        d  - days
+        w  - weeks
+        y  - years (converted to 365 days)
+    """
     if not duration_str:
         raise ValueError("Duration string cannot be empty")
 
-    value = int(duration_str[:-1])
-    unit = duration_str[-1]
+    if len(duration_str) < 2:
+        raise ValueError(f"Invalid duration format: {duration_str}")
 
-    # Handle years specially (timedelta doesn't support years directly)
-    if unit == 'y':
-        return timedelta(days=value * 365)
+    unit = duration_str[-1]
+    value_str = duration_str[:-1]
+
+    try:
+        value = int(value_str)
+    except ValueError:
+        raise ValueError(f"Invalid duration value: {value_str}")
+
+    units = {
+        's': lambda v: timedelta(seconds=v),
+        'm': lambda v: timedelta(minutes=v),
+        'h': lambda v: timedelta(hours=v),
+        'd': lambda v: timedelta(days=v),
+        'w': lambda v: timedelta(weeks=v),
+        'y': lambda v: timedelta(days=v * 365),
+    }
 
     if unit not in units:
         raise ValueError(f"Invalid duration unit: {unit}. Use s, m, h, d, w, or y")
 
-    return timedelta(**{units[unit]: value})
+    return units[unit](value)
 
 
 def log_startup_banner(config: Config, state: SyncState, db: Database) -> None:

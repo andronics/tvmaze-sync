@@ -41,6 +41,12 @@ def test_parse_duration_weeks():
     assert parse_duration("2w") == timedelta(weeks=2)
 
 
+def test_parse_duration_years():
+    """Test parsing years."""
+    assert parse_duration("1y") == timedelta(days=365)
+    assert parse_duration("2y") == timedelta(days=730)
+
+
 def test_parse_duration_invalid_unit():
     """Test invalid duration unit."""
     with pytest.raises(ValueError, match="Invalid duration unit"):
@@ -51,6 +57,18 @@ def test_parse_duration_empty_string():
     """Test empty duration string."""
     with pytest.raises(ValueError, match="cannot be empty"):
         parse_duration("")
+
+
+def test_parse_duration_invalid_value():
+    """Test invalid duration value (non-numeric)."""
+    with pytest.raises(ValueError, match="Invalid duration value"):
+        parse_duration("abch")
+
+
+def test_parse_duration_too_short():
+    """Test duration string that's too short."""
+    with pytest.raises(ValueError, match="Invalid duration format"):
+        parse_duration("h")
 
 
 # Logging setup tests
