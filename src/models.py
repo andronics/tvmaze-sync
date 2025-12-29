@@ -3,7 +3,7 @@
 import json
 import sqlite3
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from enum import Enum
 from typing import Optional
 
@@ -59,7 +59,7 @@ class Show:
     added_to_sonarr_at: Optional[datetime] = None
 
     # Sync metadata
-    last_checked: Optional[datetime] = None
+    last_checked: datetime = field(default_factory=lambda: datetime.now(UTC))
     tvmaze_updated_at: Optional[int] = None  # Unix timestamp
     retry_after: Optional[datetime] = None
     retry_count: int = 0
