@@ -1,0 +1,98 @@
+version: '3.8'
+
+services:
+  tvmaze-sync:
+    build: .
+    image: ghcr.io/andronics/tvmaze-sync:latest
+    container_name: tvmaze-sync
+    restart: unless-stopped
+
+    # Environment variables (customize as needed)
+    environment:
+      # Sonarr configuration
+      SONARR_URL: http://sonarr:8989
+      SONARR_API_KEY: ${SONARR_API_KEY}
+      SONARR_ROOT_FOLDER: /tv
+      SONARR_QUALITY_PROFILE: HD-1080p
+      SONARR_LANGUAGE_PROFILE: English
+      SONARR_TAGS: auto-sync
+
+      # TVMaze configuration
+      TVMAZE_API_KEY: ${TVMAZE_API_KEY:-}
+      TVMAZE_RATE_LIMIT: 20
+      TVMAZE_UPDATE_WINDOW: week
+
+      # Sync configuration
+      SYNC_POLL_INTERVAL: 6h
+      SYNC_RETRY_DELAY: 1w
+      SYNC_MAX_RETRIES: 4
+
+      # Filters
+      FILTERS_GENRES_EXCLUDE: Reality,Talk Show,Game Show,News,Sports
+      FILTERS_TYPES_INCLUDE: Scripted,Animation,Documentary
+      FILTERS_COUNTRIES_INCLUDE: US,GB,CA,AU,NZ,IE
+      FILTERS_LANGUAGES_INCLUDE: English
+      FILTERS_STATUS_EXCLUDE_ENDED: true
+      FILTERS_PREMIERED_AFTER: 2010-01-01
+      FILTERS_MIN_RUNTIME: 20
+
+      # Storage and logging
+      STORAGE_PATH: /data
+      LOGGING_LEVEL: INFO
+      LOGGING_FORMAT: json
+
+      # Server
+      SERVER_ENABLED: true
+      SERVER_PORT: 8080
+
+      # Dry run (set to true for testing)
+      DRY_RUN: false
+
+    # Volumes
+    volumes:
+      # Configuration file (optional - can use env vars instead)
+      - ./config.yaml:/config/config.yaml:ro
+      # Persistent data (database and state)
+      - tvmaze-data:/data
+
+    # Alternative: Use Docker secrets for sensitive data
+    # secrets:
+    #   - sonarr_api_key
+    #   - tvmaze_api_key
+
+    # Ports
+    ports:
+      - "8080:8080"
+
+    # Health check
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+    # Optional: Link to Sonarr container
+    # depends_on:
+    #   - sonarr
+
+    # Optional: Network configuration
+    # networks:
+    #   - media
+
+# Volumes
+volumes:
+  tvmaze-data:
+    driver: local
+
+# Optional: Docker secrets
+# secrets:
+#   sonarr_api_key:
+#     file: ./secrets/sonarr_api_key.txt
+#   tvmaze_api_key:
+#     file: ./secrets/tvmaze_api_key.txt
+
+# Optional: Networks
+# networks:
+#   media:
+#     external: true
