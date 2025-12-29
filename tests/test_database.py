@@ -318,7 +318,7 @@ def test_database_get_retry_counts(test_db, sample_show_no_tvdb):
 
     counts = test_db.get_retry_counts()
 
-    assert counts.get("0") >= 0  # Shows with 0 retries
+    assert counts.get("0", 0) >= 0  # Shows with 0 retries (may not exist)
     assert counts.get("1") == 1  # Our show with 1 retry
 
 

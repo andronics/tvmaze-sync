@@ -280,9 +280,12 @@ class Database:
 
     def get_filter_reason_counts(self) -> dict[str, int]:
         """
-        Get count of filtered shows by reason.
+        Get count of filtered shows by category.
 
         Returns: {"genre": 23451, "language": 31204, ...}
+
+        Note: Filter reasons are stored as "category: reason", so we extract
+        the category part before the colon and aggregate by category.
         """
         cursor = self.conn.execute("""
             SELECT filter_reason, COUNT(*) as count
@@ -292,7 +295,15 @@ class Database:
             GROUP BY filter_reason
         """, (ProcessingStatus.FILTERED,))
 
-        return {row["filter_reason"]: row["count"] for row in cursor.fetchall()}
+        # Extract category from "category: reason" format and aggregate counts
+        counts = {}
+        for row in cursor.fetchall():
+            filter_reason = row["filter_reason"]
+            # Extract category (part before the colon)
+            category = filter_reason.split(":", 1)[0].strip() if ":" in filter_reason else filter_reason
+            counts[category] = counts.get(category, 0) + row["count"]
+
+        return counts
 
     def get_highest_tvmaze_id(self) -> int:
         """Get highest TVMaze ID in database."""
@@ -307,16 +318,18 @@ class Database:
         return row["count"] or 0
 
     def get_retry_counts(self) -> dict[str, int]:
-        """Get count of shows pending retry by reason."""
-        cursor = self.conn.execute("""
-            SELECT error_message, COUNT(*) as count
-            FROM shows
-            WHERE processing_status = ?
-            AND retry_after IS NOT NULL
-            GROUP BY error_message
-        """, (ProcessingStatus.PENDING_TVDB,))
+        """Get count of shows by retry count value.
 
-        return {row["error_message"] or "No TVDB ID": row["count"] for row in cursor.fetchall()}
+        Returns dictionary mapping retry count (as string) to number of shows.
+        Example: {"0": 1000, "1": 50, "2": 10}
+        """
+        cursor = self.conn.execute("""
+            SELECT COALESCE(retry_count, 0) as retry_count, COUNT(*) as count
+            FROM shows
+            GROUP BY retry_count
+        """)
+
+        return {str(row["retry_count"]): row["count"] for row in cursor.fetchall()}
 
     # ============ Sync Helpers ============
 
@@ -416,7 +429,9 @@ class Database:
             WHERE tvmaze_id = ?
             RETURNING retry_count
         """, (tvmaze_id,))
+
+        # Fetch result BEFORE committing (cursor becomes invalid after commit)
+        row = cursor.fetchone()
         self.conn.commit()
 
-        row = cursor.fetchone()
         return row["retry_count"] if row else 0
