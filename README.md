@@ -4,6 +4,9 @@
 
 TVMaze-Sync is a Docker-native service that automatically discovers TV shows from TVMaze and adds them to Sonarr based on configurable filters. It maintains a local SQLite cache for efficient syncing and instant filter re-evaluation.
 
+[![Docker Image](https://img.shields.io/badge/docker-ghcr.io-blue)](https://github.com/andronics/tvmaze-sync/pkgs/container/tvmaze-sync)
+[![Docker Pulls](https://img.shields.io/docker/pulls/andronics/tvmaze-sync)](https://github.com/andronics/tvmaze-sync/pkgs/container/tvmaze-sync)
+
 ## Features
 
 - ✅ **Automated Discovery**: Automatically sync TV shows from TVMaze to Sonarr
