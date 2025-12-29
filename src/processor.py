@@ -6,7 +6,7 @@ import logging
 from datetime import date
 from typing import Optional
 
-from .config import FiltersConfig, SonarrConfig
+from .config import FiltersConfig, Selection, SonarrConfig
 from .database import Database
 from .models import Decision, ProcessingResult, ProcessingStatus, Show, SonarrParams
 from .state import SyncState
@@ -16,10 +16,13 @@ logger = logging.getLogger(__name__)
 
 class ShowProcessor:
     """
-    Evaluates shows against configured filters.
+    Evaluates shows against configured selections.
 
-    Designed with clean interface to allow future replacement
-    with rule engine implementation.
+    Processing flow:
+    1. Check TVDB ID exists → RETRY if missing
+    2. Check global excludes → FILTER if matches any
+    3. Check selections → ADD if matches any selection
+    4. No selection matched → FILTER
     """
 
     def __init__(self, config: FiltersConfig, sonarr_config: SonarrConfig):
@@ -44,169 +47,158 @@ class ShowProcessor:
 
     def process(self, show: Show) -> ProcessingResult:
         """
-        Evaluate show against filters and return decision.
-
-        Filter evaluation order:
-        1. Check TVDB ID exists → RETRY if missing
-        2. Check genres → FILTER if excluded genre
-        3. Check type → FILTER if not in included types
-        4. Check language → FILTER if not in included languages
-        5. Check country → FILTER if not in included countries
-        6. Check status → FILTER if ended and exclude_ended=true
-        7. Check premiered date → FILTER if before threshold
-        8. Check runtime → FILTER if below minimum
-        9. All passed → ADD
+        Evaluate show against global excludes and selections.
 
         Returns ProcessingResult with decision and details.
         """
-        # Check TVDB ID first
-        result = self._check_tvdb_id(show)
-        if result:
-            return result
-
-        # Apply filters in order
-        result = self._check_genres(show)
-        if result:
-            return result
-
-        result = self._check_type(show)
-        if result:
-            return result
-
-        result = self._check_language(show)
-        if result:
-            return result
-
-        result = self._check_country(show)
-        if result:
-            return result
-
-        result = self._check_status(show)
-        if result:
-            return result
-
-        result = self._check_premiered(show)
-        if result:
-            return result
-
-        result = self._check_runtime(show)
-        if result:
-            return result
-
-        # All filters passed - build Sonarr params
-        sonarr_params = self._build_sonarr_params(show)
-
-        return ProcessingResult(
-            decision=Decision.ADD,
-            reason="Passed all filters",
-            sonarr_params=sonarr_params
-        )
-
-    def _check_tvdb_id(self, show: Show) -> Optional[ProcessingResult]:
-        """Check if show has TVDB ID."""
+        # 1. Check TVDB ID first
         if show.tvdb_id is None:
             return ProcessingResult(
                 decision=Decision.RETRY,
                 reason="No TVDB ID available",
                 filter_category="tvdb"
             )
-        return None
 
-    def _check_genres(self, show: Show) -> Optional[ProcessingResult]:
-        """Check if show has excluded genres."""
-        if not self.config.genres.exclude:
-            return None
-
-        excluded = set(self.config.genres.exclude)
-        show_genres = set(show.genres) if show.genres else set()
-        overlap = excluded & show_genres
-
-        if overlap:
+        # 2. Check global excludes
+        exclude_reason = self._matches_exclude(show)
+        if exclude_reason:
             return ProcessingResult(
                 decision=Decision.FILTER,
-                reason=f"Excluded genre: {', '.join(sorted(overlap))}",
-                filter_category="genre"
+                reason=exclude_reason,
+                filter_category="exclude"
             )
-        return None
 
-    def _check_type(self, show: Show) -> Optional[ProcessingResult]:
-        """Check if show type is in included list."""
-        if not self.config.types.include:
-            return None
-
-        if show.type not in self.config.types.include:
+        # 3. Check selections - at least one must be defined
+        if not self.config.selections:
             return ProcessingResult(
                 decision=Decision.FILTER,
-                reason=f"Type not included: {show.type}",
-                filter_category="type"
+                reason="No selections configured",
+                filter_category="selection"
             )
+
+        # 4. Check if show matches any selection (OR logic)
+        for selection in self.config.selections:
+            if self._matches_selection(show, selection):
+                sonarr_params = self._build_sonarr_params(show)
+                return ProcessingResult(
+                    decision=Decision.ADD,
+                    reason=f"Matched: {selection.name or 'unnamed selection'}",
+                    sonarr_params=sonarr_params
+                )
+
+        # 5. No selection matched
+        return ProcessingResult(
+            decision=Decision.FILTER,
+            reason="No selection matched",
+            filter_category="selection"
+        )
+
+    def _matches_exclude(self, show: Show) -> Optional[str]:
+        """
+        Check if show matches any global exclude criteria.
+
+        Returns reason string if excluded, None if not excluded.
+        """
+        exc = self.config.exclude
+
+        # Check genres
+        if exc.genres and show.genres:
+            overlap = set(exc.genres) & set(show.genres)
+            if overlap:
+                return f"Excluded genre: {', '.join(sorted(overlap))}"
+
+        # Check types
+        if exc.types and show.type in exc.types:
+            return f"Excluded type: {show.type}"
+
+        # Check languages
+        if exc.languages and show.language in exc.languages:
+            return f"Excluded language: {show.language}"
+
+        # Check countries
+        if exc.countries and show.country in exc.countries:
+            return f"Excluded country: {show.country}"
+
+        # Check networks
+        if exc.networks and show.network in exc.networks:
+            return f"Excluded network: {show.network}"
+
         return None
 
-    def _check_language(self, show: Show) -> Optional[ProcessingResult]:
-        """Check if show language is in included list."""
-        if not self.config.languages.include:
-            return None
+    def _matches_selection(self, show: Show, sel: Selection) -> bool:
+        """
+        Check if show matches ALL criteria in a selection.
 
-        if show.language not in self.config.languages.include:
-            return ProcessingResult(
-                decision=Decision.FILTER,
-                reason=f"Language not included: {show.language}",
-                filter_category="language"
-            )
-        return None
+        Empty list/None for a criteria = no constraint (passes).
+        """
+        # Language filter
+        if sel.languages and show.language not in sel.languages:
+            return False
 
-    def _check_country(self, show: Show) -> Optional[ProcessingResult]:
-        """Check if show country is in included list."""
-        if not self.config.countries.include:
-            return None
+        # Country filter
+        if sel.countries and show.country not in sel.countries:
+            return False
 
-        if show.country not in self.config.countries.include:
-            return ProcessingResult(
-                decision=Decision.FILTER,
-                reason=f"Country not included: {show.country}",
-                filter_category="country"
-            )
-        return None
+        # Genre filter (show must have at least one matching genre)
+        if sel.genres:
+            show_genres = set(show.genres) if show.genres else set()
+            if not (set(sel.genres) & show_genres):
+                return False
 
-    def _check_status(self, show: Show) -> Optional[ProcessingResult]:
-        """Check if ended shows should be excluded."""
-        if not self.config.status.exclude_ended:
-            return None
+        # Type filter
+        if sel.types and show.type not in sel.types:
+            return False
 
-        if show.status == "Ended":
-            return ProcessingResult(
-                decision=Decision.FILTER,
-                reason="Show has ended",
-                filter_category="status"
-            )
-        return None
+        # Network filter
+        if sel.networks and show.network not in sel.networks:
+            return False
 
-    def _check_premiered(self, show: Show) -> Optional[ProcessingResult]:
-        """Check if show premiered after threshold."""
-        if not self.config.premiered.after:
-            return None
+        # Status filter
+        if sel.status and show.status not in sel.status:
+            return False
 
-        threshold = date.fromisoformat(self.config.premiered.after)
-        if show.premiered and show.premiered < threshold:
-            return ProcessingResult(
-                decision=Decision.FILTER,
-                reason=f"Premiered before {self.config.premiered.after}",
-                filter_category="premiered"
-            )
-        return None
+        # Premiered date range
+        if sel.premiered:
+            if sel.premiered.after:
+                threshold = date.fromisoformat(sel.premiered.after)
+                if not show.premiered or show.premiered < threshold:
+                    return False
+            if sel.premiered.before:
+                threshold = date.fromisoformat(sel.premiered.before)
+                if not show.premiered or show.premiered > threshold:
+                    return False
 
-    def _check_runtime(self, show: Show) -> Optional[ProcessingResult]:
-        """Check if show meets minimum runtime."""
-        if not self.config.min_runtime:
-            return None
+        # Ended date range
+        if sel.ended:
+            if sel.ended.after:
+                threshold = date.fromisoformat(sel.ended.after)
+                if not show.ended or show.ended < threshold:
+                    return False
+            if sel.ended.before:
+                threshold = date.fromisoformat(sel.ended.before)
+                if not show.ended or show.ended > threshold:
+                    return False
 
-        if show.runtime and show.runtime < self.config.min_runtime:
-            return ProcessingResult(
-                decision=Decision.FILTER,
-                reason=f"Runtime {show.runtime}m below minimum {self.config.min_runtime}m",
-                filter_category="runtime"
-            )
-        return None
+        # Rating range
+        if sel.rating:
+            show_rating = getattr(show, 'rating', None)
+            if sel.rating.min is not None:
+                if show_rating is None or show_rating < sel.rating.min:
+                    return False
+            if sel.rating.max is not None:
+                if show_rating is None or show_rating > sel.rating.max:
+                    return False
+
+        # Runtime range
+        if sel.runtime:
+            if sel.runtime.min is not None:
+                if show.runtime is None or show.runtime < sel.runtime.min:
+                    return False
+            if sel.runtime.max is not None:
+                if show.runtime is None or show.runtime > sel.runtime.max:
+                    return False
+
+        return True
 
     def _build_sonarr_params(self, show: Show) -> SonarrParams:
         """Build Sonarr parameters for show addition."""
@@ -232,14 +224,47 @@ def compute_filter_hash(config: FiltersConfig) -> str:
     Used to detect filter changes between runs.
     Returns 16-character hex string.
     """
+    # Build hashable representation of config
+    exclude_dict = {
+        "genres": sorted(config.exclude.genres),
+        "types": sorted(config.exclude.types),
+        "languages": sorted(config.exclude.languages),
+        "countries": sorted(config.exclude.countries),
+        "networks": sorted(config.exclude.networks),
+    }
+
+    selections_list = []
+    for sel in config.selections:
+        sel_dict = {
+            "name": sel.name,
+            "languages": sorted(sel.languages),
+            "countries": sorted(sel.countries),
+            "genres": sorted(sel.genres),
+            "types": sorted(sel.types),
+            "networks": sorted(sel.networks),
+            "status": sorted(sel.status),
+            "premiered": {
+                "after": sel.premiered.after if sel.premiered else None,
+                "before": sel.premiered.before if sel.premiered else None,
+            },
+            "ended": {
+                "after": sel.ended.after if sel.ended else None,
+                "before": sel.ended.before if sel.ended else None,
+            },
+            "rating": {
+                "min": sel.rating.min if sel.rating else None,
+                "max": sel.rating.max if sel.rating else None,
+            },
+            "runtime": {
+                "min": sel.runtime.min if sel.runtime else None,
+                "max": sel.runtime.max if sel.runtime else None,
+            },
+        }
+        selections_list.append(sel_dict)
+
     filter_dict = {
-        "genres_exclude": sorted(config.genres.exclude) if config.genres.exclude else [],
-        "types_include": sorted(config.types.include) if config.types.include else [],
-        "countries_include": sorted(config.countries.include) if config.countries.include else [],
-        "languages_include": sorted(config.languages.include) if config.languages.include else [],
-        "exclude_ended": config.status.exclude_ended,
-        "premiered_after": config.premiered.after,
-        "min_runtime": config.min_runtime,
+        "exclude": exclude_dict,
+        "selections": selections_list,
     }
 
     serialized = json.dumps(filter_dict, sort_keys=True)
