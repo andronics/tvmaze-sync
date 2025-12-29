@@ -123,6 +123,7 @@ CREATE TABLE shows (
     web_channel TEXT,
     genres TEXT,            -- JSON array stored as text
     runtime INTEGER,
+    rating REAL,            -- TVMaze rating.average (0-10)
 
     -- Processing state
     processing_status TEXT NOT NULL DEFAULT 'pending',
@@ -204,20 +205,31 @@ sync:
   retry_delay: "1w"                      # Retry pending_tvdb after
   abandon_after: "1y"                    # Abandon pending_tvdb after
 
-filters:
-  genres:
-    exclude: ["Reality", "Talk Show", "Game Show", "News", "Sports"]
-  types:
-    include: ["Scripted", "Animation", "Documentary"]
-  countries:
-    include: ["US", "UK", "CA", "AU", "NZ", "IE", "GB"]
-  languages:
-    include: ["English"]
-  status:
-    exclude_ended: true
-  premiered:
-    after: "2010-01-01"
-  min_runtime: 20
+# Global exclusions - shows matching ANY are rejected first
+exclude:
+  genres: ["Reality", "Talk Show", "Game Show", "News", "Sports"]
+  types: []
+  languages: []
+  countries: []
+  networks: ["Home Shopping Network"]
+
+# Selections - show must match ALL criteria in at least ONE selection
+selections:
+  - name: "English Scripted"
+    languages: ["English"]
+    countries: ["US", "GB", "CA", "AU", "NZ", "IE"]
+    types: ["Scripted", "Animation"]
+    premiered:
+      after: "2010-01-01"
+    rating:
+      min: 6.0
+    runtime:
+      min: 20
+
+  - name: "Quality Documentaries"
+    types: ["Documentary"]
+    rating:
+      min: 7.5
 
 sonarr:
   url: "${SONARR_URL}"
@@ -259,7 +271,7 @@ All config values support environment variable substitution:
 
 ### Full Environment Override
 
-Every config option can be set via environment variable:
+Many config options can be set via environment variable:
 
 ```bash
 TVMAZE_API_KEY=xxx
@@ -268,8 +280,9 @@ TVMAZE_UPDATE_WINDOW=week
 SYNC_POLL_INTERVAL=6h
 SYNC_RETRY_DELAY=1w
 SYNC_ABANDON_AFTER=1y
-FILTERS_GENRES_EXCLUDE=Reality,Talk Show,Game Show
-FILTERS_LANGUAGES_INCLUDE=English
+EXCLUDE_GENRES=Reality,Talk Show,Game Show
+EXCLUDE_TYPES=News
+EXCLUDE_NETWORKS=Home Shopping Network
 SONARR_URL=http://sonarr:8989
 SONARR_API_KEY=xxx
 SONARR_ROOT_FOLDER=/tv
@@ -279,6 +292,9 @@ LOGGING_LEVEL=INFO
 SERVER_PORT=8080
 DRY_RUN=false
 ```
+
+**Note:** Selections cannot be configured via environment variables due to their
+nested structure. Use `config.yaml` for complex selection rules.
 
 ## External Integrations
 

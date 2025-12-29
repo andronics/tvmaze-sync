@@ -58,6 +58,7 @@ class Show:
     web_channel: Optional[str] = None
     genres: list[str] = field(default_factory=list)
     runtime: Optional[int] = None
+    rating: Optional[float] = None      # TVMaze rating.average (0-10)
 
     # Processing state
     processing_status: str = "pending"
@@ -220,11 +221,13 @@ def apply_env_overrides(config: dict) -> dict:
 
     Examples:
         SONARR_URL → config['sonarr']['url']
-        FILTERS_GENRES_EXCLUDE → config['filters']['genres']['exclude']
+        EXCLUDE_GENRES → config['exclude']['genres']
         SYNC_POLL_INTERVAL → config['sync']['poll_interval']
 
     List values use comma separation:
-        FILTERS_GENRES_EXCLUDE=Reality,Talk Show,Game Show
+        EXCLUDE_GENRES=Reality,Talk Show,Game Show
+
+    Note: Selections cannot be configured via environment variables.
     """
     ...
 
@@ -259,39 +262,53 @@ class SyncConfig:
     retry_delay: str = "1w"
     abandon_after: str = "1y"
 
+# Date range for filtering
 @dataclass(frozen=True)
-class GenreFilter:
-    exclude: list[str] = field(default_factory=list)
+class DateRange:
+    after: Optional[str] = None   # ISO date: YYYY-MM-DD
+    before: Optional[str] = None  # ISO date: YYYY-MM-DD
 
+# Integer range for filtering
 @dataclass(frozen=True)
-class TypeFilter:
-    include: list[str] = field(default_factory=list)
+class IntRange:
+    min: Optional[int] = None
+    max: Optional[int] = None
 
+# Float range for filtering
 @dataclass(frozen=True)
-class CountryFilter:
-    include: list[str] = field(default_factory=list)
+class FloatRange:
+    min: Optional[float] = None
+    max: Optional[float] = None
 
+# Global exclusion rules - shows matching ANY are rejected
 @dataclass(frozen=True)
-class LanguageFilter:
-    include: list[str] = field(default_factory=list)
+class GlobalExclude:
+    genres: list[str] = field(default_factory=list)
+    types: list[str] = field(default_factory=list)
+    languages: list[str] = field(default_factory=list)
+    countries: list[str] = field(default_factory=list)
+    networks: list[str] = field(default_factory=list)
 
+# Selection rule - show must match ALL criteria within one selection
 @dataclass(frozen=True)
-class StatusFilter:
-    exclude_ended: bool = True
+class Selection:
+    name: Optional[str] = None
+    languages: list[str] = field(default_factory=list)
+    countries: list[str] = field(default_factory=list)
+    genres: list[str] = field(default_factory=list)
+    types: list[str] = field(default_factory=list)
+    networks: list[str] = field(default_factory=list)
+    status: list[str] = field(default_factory=list)
+    premiered: Optional[DateRange] = None
+    ended: Optional[DateRange] = None
+    rating: Optional[FloatRange] = None
+    runtime: Optional[IntRange] = None
 
-@dataclass(frozen=True)
-class PremieredFilter:
-    after: Optional[str] = None  # ISO date string
-
+# Filter configuration with global excludes and selections
 @dataclass(frozen=True)
 class FiltersConfig:
-    genres: GenreFilter = field(default_factory=GenreFilter)
-    types: TypeFilter = field(default_factory=TypeFilter)
-    countries: CountryFilter = field(default_factory=CountryFilter)
-    languages: LanguageFilter = field(default_factory=LanguageFilter)
-    status: StatusFilter = field(default_factory=StatusFilter)
-    premiered: PremieredFilter = field(default_factory=PremieredFilter)
-    min_runtime: Optional[int] = None
+    exclude: GlobalExclude = field(default_factory=GlobalExclude)
+    selections: list[Selection] = field(default_factory=list)
 
 @dataclass(frozen=True)
 class SonarrConfig:

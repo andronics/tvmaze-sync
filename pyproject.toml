@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "tvmaze-sync"
-version = "1.0.0"
+version = "0.0.3"
 description = "Automated TV show discovery and Sonarr integration powered by TVMaze API"
 readme = "README.md"
 requires-python = ">=3.12"
