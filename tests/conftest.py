@@ -9,11 +9,11 @@ import pytest
 from src.config import (
     Config,
     FiltersConfig,
-    GenreFilter,
+    GlobalExclude,
     LoggingConfig,
+    Selection,
     ServerConfig,
     SonarrConfig,
-    StatusFilter,
     StorageConfig,
     SyncConfig,
     TVMazeConfig,
@@ -87,8 +87,13 @@ def test_config():
         tvmaze=TVMazeConfig(),
         sync=SyncConfig(),
         filters=FiltersConfig(
-            genres=GenreFilter(exclude=["Reality", "Talk Show"]),
-            status=StatusFilter(exclude_ended=False)
+            exclude=GlobalExclude(genres=["Reality", "Talk Show"]),
+            selections=[
+                Selection(
+                    name="English Shows",
+                    languages=["English"],
+                )
+            ]
         ),
         sonarr=SonarrConfig(
             url="http://localhost:8989",

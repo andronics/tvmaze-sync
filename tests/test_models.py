@@ -115,6 +115,7 @@ def test_show_from_db_row():
             web_channel TEXT,
             genres TEXT,
             runtime INTEGER,
+            rating REAL,
             processing_status TEXT,
             filter_reason TEXT,
             filter_category TEXT,
@@ -133,7 +134,7 @@ def test_show_from_db_row():
         INSERT INTO shows VALUES (
             1, 12345, 'tt0903747', 'Breaking Bad', 'English', 'US',
             'Scripted', 'Ended', '2008-01-20', '2013-09-29', 'AMC', NULL,
-            '["Drama", "Crime"]', 47, 'pending', NULL, NULL, NULL, NULL,
+            '["Drama", "Crime"]', 47, 8.5, 'pending', NULL, NULL, NULL, NULL,
             '2024-01-01T10:00:00', 1704067200, NULL, 0, NULL, NULL
         )
     """)
@@ -188,6 +189,7 @@ def test_show_from_db_row_with_null_fields():
             web_channel TEXT,
             genres TEXT,
             runtime INTEGER,
+            rating REAL,
             processing_status TEXT,
             filter_reason TEXT,
             filter_category TEXT,
@@ -206,7 +208,7 @@ def test_show_from_db_row_with_null_fields():
         INSERT INTO shows VALUES (
             99, NULL, NULL, 'Minimal Show', NULL, NULL,
             NULL, NULL, NULL, NULL, NULL, NULL,
-            NULL, NULL, 'pending', NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, 'pending', NULL, NULL, NULL, NULL,
             NULL, NULL, NULL, 0, NULL, NULL
         )
     """)
@@ -253,6 +255,7 @@ def test_show_from_db_row_invalid_json_genres():
             web_channel TEXT,
             genres TEXT,
             runtime INTEGER,
+            rating REAL,
             processing_status TEXT,
             filter_reason TEXT,
             filter_category TEXT,
@@ -271,7 +274,7 @@ def test_show_from_db_row_invalid_json_genres():
         INSERT INTO shows VALUES (
             1, 12345, NULL, 'Test Show', 'English', 'US',
             'Scripted', 'Running', NULL, NULL, 'NBC', NULL,
-            'invalid json [', 30, 'pending', NULL, NULL, NULL, NULL,
+            'invalid json [', 30, 7.0, 'pending', NULL, NULL, NULL, NULL,
             NULL, NULL, NULL, 0, NULL, NULL
         )
     """)
@@ -312,6 +315,7 @@ def test_show_from_db_row_invalid_dates():
             web_channel TEXT,
             genres TEXT,
             runtime INTEGER,
+            rating REAL,
             processing_status TEXT,
             filter_reason TEXT,
             filter_category TEXT,
@@ -330,7 +334,7 @@ def test_show_from_db_row_invalid_dates():
         INSERT INTO shows VALUES (
             1, 12345, NULL, 'Test Show', 'English', 'US',
             'Scripted', 'Running', 'invalid-date', 'also-invalid', 'NBC', NULL,
-            NULL, 30, 'pending', NULL, NULL, NULL, 'bad-datetime',
+            NULL, 30, NULL, 'pending', NULL, NULL, NULL, 'bad-datetime',
             'also-bad-datetime', NULL, 'invalid-retry', 0, NULL, NULL
         )
     """)
