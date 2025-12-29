@@ -6,7 +6,7 @@ import signal
 import sys
 import threading
 import time
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from .clients.sonarr import SonarrClient
@@ -209,14 +209,14 @@ def sync_cycle(
 ) -> None:
     """Execute a single sync cycle."""
 
-    stats = SyncStats(started_at=datetime.utcnow())
+    stats = SyncStats(started_at=datetime.now(UTC))
     storage_path = Path(config.storage.path)
 
     try:
         if state.last_full_sync is None:
             # Initial full sync
             run_initial_sync(db, state, config, sonarr, tvmaze, processor, stats)
-            state.last_full_sync = datetime.utcnow()
+            state.last_full_sync = datetime.now(UTC)
             sync_initial_complete.set(1)
         else:
             # Incremental sync
@@ -226,11 +226,11 @@ def sync_cycle(
         retry_pending_tvdb(db, state, config, sonarr, tvmaze, processor, stats)
 
         # Update state
-        state.last_incremental_sync = datetime.utcnow()
+        state.last_incremental_sync = datetime.now(UTC)
         state.save(storage_path / "state.json")
         state.backup(storage_path / "state.json")
 
-        stats.completed_at = datetime.utcnow()
+        stats.completed_at = datetime.now(UTC)
         record_sync_complete(stats, success=True)
 
         logger.info(
@@ -242,7 +242,7 @@ def sync_cycle(
 
     except Exception as e:
         logger.exception("Sync cycle failed")
-        stats.completed_at = datetime.utcnow()
+        stats.completed_at = datetime.now(UTC)
         record_sync_complete(stats, success=False)
         raise
 
@@ -351,7 +351,7 @@ def check_for_new_shows(db, state, config, sonarr, tvmaze, processor, stats):
 
 def retry_pending_tvdb(db, state, config, sonarr, tvmaze, processor, stats):
     """Retry shows pending TVDB ID."""
-    now = datetime.utcnow()
+    now = datetime.now(UTC)
     shows_to_retry = db.get_shows_for_retry(now, config.sync.max_retries)
 
     if not shows_to_retry:
@@ -399,7 +399,7 @@ def process_single_show(db, config, sonarr, processor, show, stats):
     stats.shows_processed += 1
 
     # Store show in database
-    show.last_checked = datetime.utcnow()
+    show.last_checked = datetime.now(UTC)
     db.upsert_show(show)
 
     # Process through filters
@@ -415,7 +415,7 @@ def process_single_show(db, config, sonarr, processor, show, stats):
         stats.shows_filtered += 1
 
     elif result.decision == Decision.RETRY:
-        retry_after = datetime.utcnow() + parse_duration(config.sync.retry_delay)
+        retry_after = datetime.now(UTC) + parse_duration(config.sync.retry_delay)
         db.mark_show_pending_tvdb(show.tvmaze_id, retry_after)
         stats.shows_skipped += 1
 
@@ -424,7 +424,7 @@ def process_single_show(db, config, sonarr, processor, show, stats):
         series_data = sonarr.lookup_series(show.tvdb_id)
         if not series_data:
             logger.warning(f"Cannot find {show.title} in Sonarr, marking as pending TVDB")
-            retry_after = datetime.utcnow() + parse_duration(config.sync.retry_delay)
+            retry_after = datetime.now(UTC) + parse_duration(config.sync.retry_delay)
             db.mark_show_pending_tvdb(show.tvmaze_id, retry_after)
             stats.shows_skipped += 1
             return

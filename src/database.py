@@ -2,7 +2,7 @@
 
 import logging
 import sqlite3
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Iterator, Optional
 
@@ -345,7 +345,7 @@ class Database:
         """, (
             ProcessingStatus.ADDED,
             sonarr_series_id,
-            datetime.utcnow().isoformat(),
+            datetime.now(UTC).isoformat(),
             tvmaze_id
         ))
         self.conn.commit()

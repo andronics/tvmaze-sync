@@ -1,7 +1,7 @@
 """Pytest fixtures for testing."""
 
 import tempfile
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 
 import pytest
@@ -61,7 +61,7 @@ def sample_show():
         premiered=date(2008, 1, 20),
         genres=["Drama", "Crime", "Thriller"],
         runtime=47,
-        last_checked=datetime.utcnow()
+        last_checked=datetime.now(UTC)
     )
 
 
@@ -76,7 +76,7 @@ def sample_show_no_tvdb():
         country="US",
         type="Scripted",
         status="Running",
-        last_checked=datetime.utcnow()
+        last_checked=datetime.now(UTC)
     )
 
 
@@ -145,7 +145,7 @@ def sample_show_web_channel():
         premiered=date(2016, 7, 15),
         genres=["Drama", "Fantasy", "Horror"],
         runtime=50,
-        last_checked=datetime.utcnow()
+        last_checked=datetime.now(UTC)
     )
 
 
@@ -163,7 +163,7 @@ def sample_show_reality():
         premiered=date(2020, 1, 1),
         genres=["Reality"],
         runtime=30,
-        last_checked=datetime.utcnow()
+        last_checked=datetime.now(UTC)
     )
 
 
@@ -384,7 +384,7 @@ def mock_flask_dependencies(test_db, test_state, test_config):
     # Create mock scheduler
     scheduler = Mock(spec=Scheduler)
     scheduler.is_running = False
-    scheduler.next_run = datetime.utcnow()
+    scheduler.next_run = datetime.now(UTC)
     scheduler.trigger_now = Mock()
 
     # Create mock Sonarr client
@@ -453,7 +453,7 @@ def sync_stats():
     from src.models import SyncStats
     from datetime import datetime
 
-    return SyncStats(started_at=datetime.utcnow())
+    return SyncStats(started_at=datetime.now(UTC))
 
 
 # Mock clients for integration tests

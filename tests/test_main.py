@@ -1,7 +1,7 @@
 """Tests for main application logic."""
 
 import pytest
-from datetime import timedelta, datetime
+from datetime import UTC, timedelta, datetime
 from unittest.mock import Mock, patch, MagicMock
 from pathlib import Path
 
@@ -280,7 +280,7 @@ def test_sync_cycle_incremental(mock_retry, mock_incremental, test_db, test_stat
     )
 
     # Set previous sync
-    test_state.last_full_sync = datetime.utcnow()
+    test_state.last_full_sync = datetime.now(UTC)
 
     sync_cycle(test_db, test_state, test_config, mock_sonarr_client, mock_tvmaze_client, processor)
 
@@ -339,7 +339,7 @@ def test_retry_pending_tvdb_success(test_db, test_state, test_config, mock_sonar
     test_db.upsert_show(sample_show_no_tvdb)
     test_db.mark_show_pending_tvdb(
         sample_show_no_tvdb.tvmaze_id,
-        retry_after=datetime.utcnow() - timedelta(days=1)  # Ready for retry
+        retry_after=datetime.now(UTC) - timedelta(days=1)  # Ready for retry
     )
 
     # Mock TVMaze to return show WITH TVDB now
