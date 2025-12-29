@@ -1,0 +1,95 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tvmaze-sync"
+version = "1.0.0"
+description = "Automated TV show discovery and Sonarr integration powered by TVMaze API"
+readme = "README.md"
+requires-python = ">=3.12"
+license = {text = "MIT"}
+authors = [
+    {name = "TVMaze-Sync Contributors"}
+]
+keywords = [
+    "tvmaze",
+    "sonarr",
+    "automation",
+    "tv-shows",
+    "docker",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Multimedia :: Video",
+    "Topic :: System :: Monitoring",
+]
+
+dependencies = [
+    "Flask==3.0.0",
+    "PyYAML==6.0.1",
+    "requests==2.31.0",
+    "pyarr==5.2.0",
+    "prometheus-client==0.19.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==7.4.3",
+    "pytest-cov==4.1.0",
+    "pytest-mock==3.12.0",
+    "responses==0.24.1",
+]
+
+[project.scripts]
+tvmaze-sync = "src.main:main"
+
+[project.urls]
+Homepage = "https://github.com/andronics/tvmaze-sync"
+Documentation = "https://github.com/andronics/tvmaze-sync/wiki"
+Repository = "https://github.com/andronics/tvmaze-sync"
+Issues = "https://github.com/andronics/tvmaze-sync/issues"
+
+[tool.setuptools]
+packages = ["src", "src.clients"]
+
+[tool.setuptools.package-data]
+src = ["py.typed"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "--strict-markers",
+    "--strict-config",
+    "-ra",
+]
+markers = [
+    "unit: Unit tests",
+    "integration: Integration tests",
+]
+
+[tool.coverage.run]
+source = ["src"]
+omit = [
+    "*/tests/*",
+    "*/__pycache__/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod",
+]
