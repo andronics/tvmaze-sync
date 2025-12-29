@@ -70,6 +70,14 @@ class RateLimiter:
             # Add current timestamp
             self._timestamps.append(now)
 
+    def cleanup(self) -> None:
+        """Remove expired timestamps from the sliding window."""
+        with self._lock:
+            now = time.time()
+            cutoff = now - self.window_seconds
+            while self._timestamps and self._timestamps[0] < cutoff:
+                self._timestamps.popleft()
+
     def wait_time(self) -> float:
         """Get seconds until next request is allowed."""
         with self._lock:
@@ -112,6 +120,11 @@ class TVMazeClient:
             self.session.params = {'apikey': config.api_key}
 
         logger.info(f"TVMaze client initialized (rate limit: {config.rate_limit} req/10s)")
+
+    @property
+    def rate_limiter(self) -> RateLimiter:
+        """Get rate limiter instance."""
+        return self._rate_limiter
 
     def get_shows_page(self, page: int) -> list[dict]:
         """
@@ -196,12 +209,12 @@ class TVMazeClient:
 
         Handles:
         - Rate limiting with backoff
-        - Retry on 429
+        - Retry on 429 and 5xx errors
         - Metric tracking
         """
         url = f"{self.BASE_URL}{endpoint}"
 
-        for attempt in range(max_retries):
+        for attempt in range(max_retries + 1):  # +1 for initial attempt
             # Acquire rate limit token
             self._rate_limiter.acquire()
 
@@ -215,11 +228,20 @@ class TVMazeClient:
                     time.sleep(retry_after)
                     continue
 
+                # Handle server errors with retry
+                if 500 <= response.status_code < 600:
+                    if attempt < max_retries:
+                        backoff = 2 ** attempt
+                        logger.warning(f"Server error {response.status_code} for {endpoint}, retrying in {backoff}s (attempt {attempt + 1}/{max_retries + 1})")
+                        time.sleep(backoff)
+                        continue
+                    # Last attempt, let it return so caller can handle
+
                 return response
 
             except requests.Timeout:
-                logger.warning(f"Request timeout for {endpoint} (attempt {attempt + 1}/{max_retries})")
-                if attempt == max_retries - 1:
+                logger.warning(f"Request timeout for {endpoint} (attempt {attempt + 1}/{max_retries + 1})")
+                if attempt >= max_retries:
                     raise
                 time.sleep(2 ** attempt)  # Exponential backoff
 
