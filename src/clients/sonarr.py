@@ -40,10 +40,21 @@ class SonarrClient:
 
         # Populated by validate_config()
         self._root_folder_path: Optional[str] = None
+        self._root_folder_id: Optional[int] = None
         self._quality_profile_id: Optional[int] = None
         self._language_profile_id: Optional[int] = None
         self._tag_ids: list[int] = []
         self._sonarr_version: Optional[str] = None
+
+    @property
+    def version(self) -> Optional[str]:
+        """Get Sonarr version."""
+        return self._sonarr_version
+
+    @version.setter
+    def version(self, value: Optional[str]) -> None:
+        """Set Sonarr version."""
+        self._sonarr_version = value
 
     def validate_config(self) -> None:
         """
@@ -76,12 +87,15 @@ class SonarrClient:
         except Exception as e:
             raise ConfigurationError(f"Cannot connect to Sonarr at {self.config.url}: {e}")
 
-    def _validate_root_folder(self) -> None:
-        """Validate configured root folder exists."""
+    def _validate_root_folder(self) -> int:
+        """Validate configured root folder exists and return its ID."""
         try:
             folders = self._api.get_root_folder()
         except Exception as e:
             raise ConfigurationError(f"Failed to get root folders from Sonarr: {e}")
+
+        if not folders:
+            raise ConfigurationError("No root folders found in Sonarr")
 
         by_path = {f['path']: f['id'] for f in folders}
         by_id = {f['id']: f['path'] for f in folders}
@@ -97,6 +111,7 @@ class SonarrClient:
                     f"Available: {list(by_id.values())}"
                 )
             self._root_folder_path = by_id[folder_id]
+            self._root_folder_id = folder_id
         else:
             # Configured as path
             if configured not in by_path:
@@ -105,10 +120,12 @@ class SonarrClient:
                     f"Available: {list(by_path.keys())}"
                 )
             self._root_folder_path = configured
+            self._root_folder_id = by_path[configured]
 
-        logger.info(f"Using root folder: {self._root_folder_path}")
+        logger.info(f"Using root folder: {self._root_folder_path} (ID: {self._root_folder_id})")
+        return self._root_folder_id
 
-    def _validate_quality_profile(self) -> None:
+    def _validate_quality_profile(self) -> int:
         """Validate configured quality profile exists."""
         try:
             profiles = self._api.get_quality_profile()
@@ -120,13 +137,15 @@ class SonarrClient:
 
         configured = self.config.quality_profile
 
-        if isinstance(configured, int):
-            if configured not in by_id:
+        # Check if configured as ID
+        if isinstance(configured, int) or (isinstance(configured, str) and configured.isdigit()):
+            profile_id = int(configured)
+            if profile_id not in by_id:
                 raise ConfigurationError(
-                    f"Quality profile ID {configured} not found. "
+                    f"Quality profile ID {profile_id} not found. "
                     f"Available: {[f'{p['name']} ({p['id']})' for p in profiles]}"
                 )
-            self._quality_profile_id = configured
+            self._quality_profile_id = profile_id
         else:
             if configured.lower() not in by_name:
                 raise ConfigurationError(
@@ -136,14 +155,15 @@ class SonarrClient:
             self._quality_profile_id = by_name[configured.lower()]
 
         logger.info(f"Using quality profile ID: {self._quality_profile_id}")
+        return self._quality_profile_id
 
-    def _validate_language_profile(self) -> None:
+    def _validate_language_profile(self) -> Optional[int]:
         """Validate language profile (Sonarr v3 only)."""
         # Check if Sonarr v4+ (no language profiles)
         if self._sonarr_version and self._sonarr_version.startswith('4'):
             self._language_profile_id = None
             logger.info("Sonarr v4 detected, language profiles not required")
-            return
+            return None
 
         # For v3, language profile is required
         if not self.config.language_profile:
@@ -157,20 +177,22 @@ class SonarrClient:
             # If the endpoint doesn't exist, assume v4+
             logger.info("Language profile endpoint not available, assuming Sonarr v4+")
             self._language_profile_id = None
-            return
+            return None
 
         by_name = {p['name'].lower(): p['id'] for p in profiles}
         by_id = {p['id']: p['name'] for p in profiles}
 
         configured = self.config.language_profile
 
-        if isinstance(configured, int):
-            if configured not in by_id:
+        # Check if configured as ID
+        if isinstance(configured, int) or (isinstance(configured, str) and configured.isdigit()):
+            profile_id = int(configured)
+            if profile_id not in by_id:
                 raise ConfigurationError(
-                    f"Language profile ID {configured} not found. "
+                    f"Language profile ID {profile_id} not found. "
                     f"Available: {[f'{p['name']} ({p['id']})' for p in profiles]}"
                 )
-            self._language_profile_id = configured
+            self._language_profile_id = profile_id
         else:
             if configured.lower() not in by_name:
                 raise ConfigurationError(
@@ -180,12 +202,13 @@ class SonarrClient:
             self._language_profile_id = by_name[configured.lower()]
 
         logger.info(f"Using language profile ID: {self._language_profile_id}")
+        return self._language_profile_id
 
-    def _validate_tags(self) -> None:
+    def _validate_tags(self) -> list[int]:
         """Validate configured tags exist."""
         if not self.config.tags:
             self._tag_ids = []
-            return
+            return []
 
         try:
             tags = self._api.get_tag()
@@ -197,13 +220,15 @@ class SonarrClient:
 
         self._tag_ids = []
         for configured in self.config.tags:
-            if isinstance(configured, int):
-                if configured not in by_id:
+            # Check if configured as ID
+            if isinstance(configured, int) or (isinstance(configured, str) and configured.isdigit()):
+                tag_id = int(configured)
+                if tag_id not in by_id:
                     raise ConfigurationError(
-                        f"Tag ID {configured} not found. "
+                        f"Tag ID {tag_id} not found. "
                         f"Available: {[f'{t['label']} ({t['id']})' for t in tags]}"
                     )
-                self._tag_ids.append(configured)
+                self._tag_ids.append(tag_id)
             else:
                 if configured.lower() not in by_name:
                     raise ConfigurationError(
@@ -213,12 +238,21 @@ class SonarrClient:
                 self._tag_ids.append(by_name[configured.lower()])
 
         logger.info(f"Using tag IDs: {self._tag_ids}")
+        return self._tag_ids
 
     @property
-    def validated_params(self) -> dict:
-        """Get validated Sonarr parameters."""
+    def validated_params(self) -> Optional[dict]:
+        """Get validated Sonarr parameters.
+
+        Returns None if validate_config() has not been called yet.
+        """
+        # If validation hasn't been run, return None
+        if self._root_folder_path is None:
+            return None
+
         return {
             'root_folder': self._root_folder_path,
+            'root_folder_id': self._root_folder_id,
             'quality_profile_id': self._quality_profile_id,
             'language_profile_id': self._language_profile_id,
             'tag_ids': self._tag_ids,
