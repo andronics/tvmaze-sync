@@ -179,6 +179,7 @@ All configuration options can be set via environment variables using `SECTION_KE
 | `SONARR_API_KEY` | Sonarr API key |
 | `SONARR_ROOT_FOLDER` | Root folder path or ID |
 | `SONARR_QUALITY_PROFILE` | Quality profile name or ID |
+| `SERVER_API_KEY` | API key for protected HTTP endpoints |
 
 ### Optional Variables
 
@@ -229,39 +230,54 @@ docker-compose.yml:
 
 ## API Endpoints
 
-The built-in HTTP server exposes several endpoints for monitoring and control:
+The built-in HTTP server exposes several endpoints for monitoring and control.
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/health` | GET | Liveness probe (always returns 200 if running) |
-| `/ready` | GET | Readiness probe (checks Sonarr connectivity) |
-| `/metrics` | GET | Prometheus metrics |
-| `/config` | GET | Current running configuration |
-| `/trigger` | POST | Manually trigger a sync cycle |
-| `/state` | GET | Current sync state (last run times, page info) |
-| `/shows` | GET | Query shows from database |
-| `/refilter` | POST | Re-evaluate filters for all filtered shows |
+### Authentication
+
+Protected endpoints require an API key via:
+- Header: `X-API-Key: your-api-key`
+- Query param: `?api_key=your-api-key`
+
+| Endpoint | Method | Auth | Description |
+|----------|--------|------|-------------|
+| `/health` | GET | Public | Liveness probe (always returns 200 if running) |
+| `/ready` | GET | Public | Readiness probe (checks Sonarr connectivity) |
+| `/metrics` | GET | Public | Prometheus metrics |
+| `/config` | GET | 🔒 | Current running configuration |
+| `/trigger` | POST | 🔒 | Manually trigger a sync cycle |
+| `/state` | GET | 🔒 | Current sync state (last run times, page info) |
+| `/shows` | GET | 🔒 | Query shows from database |
+| `/refilter` | POST | 🔒 | Re-evaluate filters for all filtered shows |
 
 ### API Examples
 
 ```bash
+# Public endpoints (no auth required)
+curl http://localhost:8080/health
+curl http://localhost:8080/ready
+curl http://localhost:8080/metrics
+
+# Protected endpoints (require API key)
 # Trigger manual sync
-curl -X POST http://localhost:8080/trigger
+curl -X POST -H "X-API-Key: your-api-key" http://localhost:8080/trigger
 
 # Check current state
-curl http://localhost:8080/state
+curl -H "X-API-Key: your-api-key" http://localhost:8080/state
 
 # View running configuration
-curl http://localhost:8080/config
+curl -H "X-API-Key: your-api-key" http://localhost:8080/config
 
 # Query filtered shows
-curl "http://localhost:8080/shows?status=filtered&limit=10"
+curl -H "X-API-Key: your-api-key" "http://localhost:8080/shows?status=filtered&limit=10"
 
 # Query added shows
-curl "http://localhost:8080/shows?status=added"
+curl -H "X-API-Key: your-api-key" "http://localhost:8080/shows?status=added"
 
 # Re-evaluate filters after config change
-curl -X POST http://localhost:8080/refilter
+curl -X POST -H "X-API-Key: your-api-key" http://localhost:8080/refilter
+
+# Alternative: use query parameter
+curl "http://localhost:8080/state?api_key=your-api-key"
 ```
 
 ## Dry Run Mode

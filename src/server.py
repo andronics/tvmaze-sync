@@ -26,6 +26,19 @@ def create_app(
 
     app = Flask(__name__)
 
+    @app.before_request
+    def check_api_key():
+        """Validate API key for protected endpoints."""
+        # Public endpoints (observability) - no auth required
+        if request.path in ['/health', '/ready', '/metrics']:
+            return
+
+        # Check header first, then query param
+        api_key = request.headers.get('X-API-Key') or request.args.get('api_key')
+
+        if not api_key or api_key != config.server.api_key:
+            return jsonify({"error": "Unauthorized"}), 401
+
     @app.route('/health')
     def health():
         """Liveness probe."""

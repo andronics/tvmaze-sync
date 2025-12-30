@@ -80,24 +80,24 @@ def test_metrics_content_type(flask_client):
     assert 'version=' in response.content_type
 
 
-def test_trigger_endpoint_success(flask_client, mock_flask_dependencies):
+def test_trigger_endpoint_success(auth_client, mock_flask_dependencies):
     """Test /trigger endpoint when scheduler is not running."""
     scheduler = mock_flask_dependencies['scheduler']
     scheduler.is_running = False
 
-    response = flask_client.post('/trigger')
+    response = auth_client.post('/trigger')
 
     assert response.status_code == 200
     assert response.json == {"status": "triggered"}
     scheduler.trigger_now.assert_called_once()
 
 
-def test_trigger_endpoint_already_running(flask_client, mock_flask_dependencies):
+def test_trigger_endpoint_already_running(auth_client, mock_flask_dependencies):
     """Test /trigger endpoint when scheduler is already running."""
     scheduler = mock_flask_dependencies['scheduler']
     scheduler.is_running = True
 
-    response = flask_client.post('/trigger')
+    response = auth_client.post('/trigger')
 
     assert response.status_code == 409
     data = response.json
@@ -105,7 +105,7 @@ def test_trigger_endpoint_already_running(flask_client, mock_flask_dependencies)
     scheduler.trigger_now.assert_not_called()
 
 
-def test_state_endpoint(flask_client, mock_flask_dependencies):
+def test_state_endpoint(auth_client, mock_flask_dependencies):
     """Test /state endpoint."""
     state = mock_flask_dependencies['state']
     state.last_full_sync = datetime(2024, 1, 1, 12, 0, 0)
@@ -113,7 +113,7 @@ def test_state_endpoint(flask_client, mock_flask_dependencies):
     state.last_tvmaze_page = 100
     state.highest_tvmaze_id = 50000
 
-    response = flask_client.get('/state')
+    response = auth_client.get('/state')
 
     assert response.status_code == 200
     data = response.json
@@ -123,7 +123,7 @@ def test_state_endpoint(flask_client, mock_flask_dependencies):
     assert data['highest_tvmaze_id'] == 50000
 
 
-def test_shows_endpoint_with_status(flask_client, mock_flask_dependencies, sample_show):
+def test_shows_endpoint_with_status(auth_client, mock_flask_dependencies, sample_show):
     """Test /shows endpoint with status filter."""
     db = mock_flask_dependencies['db']
 
@@ -131,7 +131,7 @@ def test_shows_endpoint_with_status(flask_client, mock_flask_dependencies, sampl
     db.upsert_show(sample_show)
     db.mark_show_added(sample_show.tvmaze_id, sonarr_series_id=1)
 
-    response = flask_client.get('/shows?status=added')
+    response = auth_client.get('/shows?status=added')
 
     assert response.status_code == 200
     data = response.json
@@ -139,7 +139,7 @@ def test_shows_endpoint_with_status(flask_client, mock_flask_dependencies, sampl
     assert len(data) >= 1
 
 
-def test_shows_endpoint_with_pagination(flask_client, mock_flask_dependencies, sample_show):
+def test_shows_endpoint_with_pagination(auth_client, mock_flask_dependencies, sample_show):
     """Test /shows endpoint with limit and offset."""
     db = mock_flask_dependencies['db']
 
@@ -150,7 +150,7 @@ def test_shows_endpoint_with_pagination(flask_client, mock_flask_dependencies, s
         db.upsert_show(show)
         db.mark_show_added(show.tvmaze_id, sonarr_series_id=i + 1)
 
-    response = flask_client.get('/shows?status=added&limit=2&offset=1')
+    response = auth_client.get('/shows?status=added&limit=2&offset=1')
 
     assert response.status_code == 200
     data = response.json
@@ -158,16 +158,16 @@ def test_shows_endpoint_with_pagination(flask_client, mock_flask_dependencies, s
     assert len(data) <= 2
 
 
-def test_shows_endpoint_no_status_filter(flask_client):
+def test_shows_endpoint_no_status_filter(auth_client):
     """Test /shows endpoint without status filter."""
-    response = flask_client.get('/shows')
+    response = auth_client.get('/shows')
 
     assert response.status_code == 200
     data = response.json
     assert isinstance(data, list)
 
 
-def test_refilter_endpoint_success(flask_client, mock_flask_dependencies, sample_show):
+def test_refilter_endpoint_success(auth_client, mock_flask_dependencies, sample_show):
     """Test /refilter endpoint success."""
     db = mock_flask_dependencies['db']
     processor = mock_flask_dependencies['processor']
@@ -176,7 +176,7 @@ def test_refilter_endpoint_success(flask_client, mock_flask_dependencies, sample
     db.upsert_show(sample_show)
     db.mark_show_filtered(sample_show.tvmaze_id, "Genre excluded", "genre")
 
-    response = flask_client.post('/refilter')
+    response = auth_client.post('/refilter')
 
     assert response.status_code == 200
     data = response.json
@@ -184,7 +184,7 @@ def test_refilter_endpoint_success(flask_client, mock_flask_dependencies, sample
     assert isinstance(data['refiltered'], int)
 
 
-def test_refilter_endpoint_error(flask_client, mock_flask_dependencies, monkeypatch):
+def test_refilter_endpoint_error(auth_client, mock_flask_dependencies, monkeypatch):
     """Test /refilter endpoint error handling."""
     # Make re_evaluate_filtered_shows raise an error
     def mock_refilter_error(*args, **kwargs):
@@ -192,7 +192,7 @@ def test_refilter_endpoint_error(flask_client, mock_flask_dependencies, monkeypa
 
     monkeypatch.setattr('src.server.re_evaluate_filtered_shows', mock_refilter_error)
 
-    response = flask_client.post('/refilter')
+    response = auth_client.post('/refilter')
 
     assert response.status_code == 500
     data = response.json
@@ -200,9 +200,9 @@ def test_refilter_endpoint_error(flask_client, mock_flask_dependencies, monkeypa
     assert 'error' in data
 
 
-def test_config_endpoint(flask_client):
+def test_config_endpoint(auth_client):
     """Test /config endpoint returns full configuration."""
-    response = flask_client.get('/config')
+    response = auth_client.get('/config')
 
     assert response.status_code == 200
     data = response.json
@@ -214,3 +214,44 @@ def test_config_endpoint(flask_client):
     assert 'logging' in data
     assert 'server' in data
     assert 'dry_run' in data
+
+
+# Authentication tests
+def test_protected_endpoint_requires_auth(flask_client):
+    """Test protected endpoints return 401 without API key."""
+    response = flask_client.get('/state')
+    assert response.status_code == 401
+    assert response.json == {"error": "Unauthorized"}
+
+
+def test_protected_endpoint_with_invalid_key(flask_client):
+    """Test protected endpoints return 401 with invalid API key."""
+    response = flask_client.get('/state', headers={'X-API-Key': 'wrong-key'})
+    assert response.status_code == 401
+
+
+def test_protected_endpoint_with_valid_header(flask_client):
+    """Test protected endpoints work with valid API key header."""
+    response = flask_client.get('/state', headers={'X-API-Key': 'test-key'})
+    assert response.status_code == 200
+
+
+def test_protected_endpoint_with_query_param(flask_client):
+    """Test API key via query parameter."""
+    response = flask_client.get('/state?api_key=test-key')
+    assert response.status_code == 200
+
+
+def test_public_endpoints_no_auth(flask_client):
+    """Test public endpoints don't require auth."""
+    # Health should always return 200
+    response = flask_client.get('/health')
+    assert response.status_code == 200
+
+    # Ready may return 200 or 503 depending on health
+    response = flask_client.get('/ready')
+    assert response.status_code in [200, 503]
+
+    # Metrics should return 200
+    response = flask_client.get('/metrics')
+    assert response.status_code == 200

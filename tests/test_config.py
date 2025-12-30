@@ -76,6 +76,7 @@ def test_load_config_from_env_only():
     os.environ["SONARR_API_KEY"] = "test_key"
     os.environ["SONARR_ROOT_FOLDER"] = "/tv"
     os.environ["SONARR_QUALITY_PROFILE"] = "HD"
+    os.environ["SERVER_API_KEY"] = "test-server-key"
 
     try:
         config = load_config(Path("/nonexistent/config.yaml"))
@@ -84,12 +85,14 @@ def test_load_config_from_env_only():
         assert config.sonarr.api_key == "test_key"
         assert config.sonarr.root_folder == "/tv"
         assert config.sonarr.quality_profile == "HD"
+        assert config.server.api_key == "test-server-key"
 
     finally:
         del os.environ["SONARR_URL"]
         del os.environ["SONARR_API_KEY"]
         del os.environ["SONARR_ROOT_FOLDER"]
         del os.environ["SONARR_QUALITY_PROFILE"]
+        del os.environ["SERVER_API_KEY"]
 
 
 @pytest.mark.unit
@@ -167,6 +170,9 @@ def test_load_config_from_yaml():
                 "api_key": "test_key",
                 "root_folder": "/tv",
                 "quality_profile": "HD-1080p"
+            },
+            "server": {
+                "api_key": "test-server-key"
             }
         }
         yaml.dump(config_data, f)
@@ -176,6 +182,7 @@ def test_load_config_from_yaml():
         config = load_config(config_path)
         assert config.sonarr.url == "http://localhost:8989"
         assert config.sonarr.api_key == "test_key"
+        assert config.server.api_key == "test-server-key"
     finally:
         os.unlink(config_path)
 

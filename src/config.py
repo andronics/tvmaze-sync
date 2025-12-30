@@ -131,6 +131,7 @@ class ServerConfig:
 
     enabled: bool = True
     port: int = 8080
+    api_key: Optional[str] = None
 
 
 @dataclass(frozen=True)
@@ -272,6 +273,7 @@ def apply_env_overrides(config_dict: dict) -> dict:
         # Server
         "SERVER_ENABLED": ["server", "enabled"],
         "SERVER_PORT": ["server", "port"],
+        "SERVER_API_KEY": ["server", "api_key"],
         # Dry run
         "DRY_RUN": ["dry_run"],
     }
@@ -459,6 +461,7 @@ def load_config(path: Path | None = None) -> Config:
         server = ServerConfig(
             enabled=server_data.get("enabled", True),
             port=server_data.get("port", 8080),
+            api_key=server_data.get("api_key"),
         )
 
         # Dry run - defaults to True for safety
@@ -520,6 +523,10 @@ def validate_config(config: Config) -> None:
     # Validate server port
     if not isinstance(config.server.port, int) or config.server.port < 1 or config.server.port > 65535:
         errors.append(f"Invalid server.port: {config.server.port}. Must be between 1 and 65535")
+
+    # Validate server API key (required when server is enabled)
+    if config.server.enabled and not config.server.api_key:
+        errors.append("server.api_key is required when server is enabled")
 
     # Validate TVMaze update window
     valid_windows = ["day", "week", "month"]

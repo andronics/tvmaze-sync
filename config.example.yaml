@@ -150,6 +150,11 @@ server:
   # Port to listen on
   port: 8080
 
+  # API key for protected endpoints (required)
+  # Public endpoints: /health, /ready, /metrics
+  # Protected endpoints: /config, /trigger, /state, /shows, /refilter
+  api_key: "${SERVER_API_KEY}"
+
 # Dry Run Mode
 # Defaults to true for safety - set to false when ready to add shows to Sonarr
 dry_run: false  # Set to true to test without adding shows
