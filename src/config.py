@@ -146,6 +146,11 @@ class Config:
     server: ServerConfig
     dry_run: bool = True  # Safe default - must explicitly disable
 
+    def to_dict(self) -> dict:
+        """Convert config to dictionary for JSON serialization."""
+        import dataclasses
+        return dataclasses.asdict(self)
+
 
 def resolve_env_value(value: str) -> str:
     """

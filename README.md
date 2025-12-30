@@ -236,6 +236,7 @@ The built-in HTTP server exposes several endpoints for monitoring and control:
 | `/health` | GET | Liveness probe (always returns 200 if running) |
 | `/ready` | GET | Readiness probe (checks Sonarr connectivity) |
 | `/metrics` | GET | Prometheus metrics |
+| `/config` | GET | Current running configuration |
 | `/trigger` | POST | Manually trigger a sync cycle |
 | `/state` | GET | Current sync state (last run times, page info) |
 | `/shows` | GET | Query shows from database |
@@ -249,6 +250,9 @@ curl -X POST http://localhost:8080/trigger
 
 # Check current state
 curl http://localhost:8080/state
+
+# View running configuration
+curl http://localhost:8080/config
 
 # Query filtered shows
 curl "http://localhost:8080/shows?status=filtered&limit=10"

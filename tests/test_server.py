@@ -198,3 +198,19 @@ def test_refilter_endpoint_error(flask_client, mock_flask_dependencies, monkeypa
     data = response.json
     assert data['status'] == 'error'
     assert 'error' in data
+
+
+def test_config_endpoint(flask_client):
+    """Test /config endpoint returns full configuration."""
+    response = flask_client.get('/config')
+
+    assert response.status_code == 200
+    data = response.json
+    assert 'sonarr' in data
+    assert 'tvmaze' in data
+    assert 'filters' in data
+    assert 'sync' in data
+    assert 'storage' in data
+    assert 'logging' in data
+    assert 'server' in data
+    assert 'dry_run' in data

@@ -126,4 +126,9 @@ def create_app(
                 "error": str(e)
             }), 500
 
+    @app.route('/config')
+    def get_config():
+        """Return the complete running configuration."""
+        return jsonify(config.to_dict())
+
     return app
