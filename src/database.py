@@ -310,6 +310,23 @@ class Database:
                 break
             yield Show.from_db_row(row)
 
+    def get_all_shows_with_tvdb(self) -> Iterator[Show]:
+        """
+        Iterate all shows that have a TVDB ID.
+
+        Uses server-side cursor for memory efficiency.
+        Used for selections sync to Sonarr.
+        """
+        cursor = self.conn.execute(
+            "SELECT * FROM shows WHERE tvdb_id IS NOT NULL"
+        )
+
+        while True:
+            row = cursor.fetchone()
+            if row is None:
+                break
+            yield Show.from_db_row(row)
+
     # ============ Statistics ============
 
     def get_status_counts(self) -> dict[str, int]:

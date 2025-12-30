@@ -116,6 +116,78 @@ def log_startup_banner(config: Config, state: SyncState, db: Database) -> None:
     logger.info("=" * 70)
 
 
+def sync_selections_to_sonarr(
+    db: Database,
+    config: Config,
+    sonarr: SonarrClient,
+    processor: ShowProcessor
+) -> None:
+    """
+    Ensure all shows matching selections are in Sonarr.
+
+    This runs independently of TVMaze sync - it uses existing database shows
+    and adds any that match selections but aren't already in Sonarr.
+    """
+    # 1. Get all TVDB IDs currently in Sonarr (ONE API call)
+    sonarr_series = sonarr.get_all_series()
+    existing_tvdb_ids = {s['tvdbId'] for s in sonarr_series if s.get('tvdbId')}
+    logger.info(f"Found {len(existing_tvdb_ids)} shows in Sonarr")
+
+    # 2. Iterate database shows with TVDB IDs and check against selections
+    candidates = []
+    total_checked = 0
+
+    for show in db.get_all_shows_with_tvdb():
+        total_checked += 1
+
+        # Skip if already in Sonarr
+        if show.tvdb_id in existing_tvdb_ids:
+            continue
+
+        # Check if show matches selections
+        result = processor.process(show)
+        if result.decision == Decision.ADD:
+            candidates.append((show, result))
+
+    logger.info(f"Checked {total_checked} shows, found {len(candidates)} matching selections not in Sonarr")
+
+    if not candidates:
+        return
+
+    # 3. Add candidates to Sonarr
+    added = 0
+    failed = 0
+
+    for show, result in candidates:
+        if config.dry_run:
+            logger.info(f"[DRY RUN] Would add: {show.title} (matched: {result.reason})")
+            added += 1
+            continue
+
+        # Lookup and add to Sonarr
+        series_data = sonarr.lookup_series(show.tvdb_id)
+        if not series_data:
+            logger.warning(f"Cannot find {show.title} in Sonarr lookup")
+            failed += 1
+            continue
+
+        add_result = sonarr.add_series(result.sonarr_params, series_data)
+
+        if add_result.success:
+            db.mark_show_added(show.tvmaze_id, add_result.series_id)
+            logger.info(f"Added: {show.title}")
+            added += 1
+        elif add_result.exists:
+            db.update_show_status(show.tvmaze_id, ProcessingStatus.EXISTS)
+            added += 1  # Count as success since it's in Sonarr
+        else:
+            db.mark_show_failed(show.tvmaze_id, add_result.error)
+            logger.warning(f"Failed to add {show.title}: {add_result.error}")
+            failed += 1
+
+    logger.info(f"Selections sync complete: {added} added, {failed} failed")
+
+
 def main():
     """Application entry point."""
 
@@ -154,6 +226,10 @@ def main():
 
     # ============ Check Filter Changes ============
     check_filter_change(state, config.filters, db, processor)
+
+    # ============ Sync Selections to Sonarr ============
+    # Ensure all shows matching selections are in Sonarr (independent of TVMaze sync)
+    sync_selections_to_sonarr(db, config, sonarr, processor)
 
     # ============ Create Sync Function ============
     def run_sync():
