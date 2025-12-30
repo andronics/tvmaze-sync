@@ -429,21 +429,26 @@ def process_single_show(db, config, sonarr, processor, show, stats):
     # Process through filters
     result = processor.process(show)
 
-    # Handle dry run mode
-    if config.dry_run:
-        logger.info(f"[DRY RUN] {show.title}: {result.decision.value} - {result.reason or 'passed filters'}")
-        return
-
     if result.decision == Decision.FILTER:
         db.mark_show_filtered(show.tvmaze_id, result.reason, result.filter_category)
         stats.shows_filtered += 1
+        if config.dry_run:
+            logger.info(f"[DRY RUN] Filtered: {show.title} - {result.reason}")
 
     elif result.decision == Decision.RETRY:
         retry_after = datetime.now(UTC) + parse_duration(config.sync.retry_delay)
         db.mark_show_pending_tvdb(show.tvmaze_id, retry_after)
         stats.shows_skipped += 1
+        if config.dry_run:
+            logger.info(f"[DRY RUN] Pending TVDB: {show.title}")
 
     elif result.decision == Decision.ADD:
+        if config.dry_run:
+            # In dry run, mark as "would add" but don't call Sonarr
+            logger.info(f"[DRY RUN] Would add: {show.title} (matched: {result.reason})")
+            stats.shows_added += 1
+            return
+
         # Lookup and add to Sonarr
         series_data = sonarr.lookup_series(show.tvdb_id)
         if not series_data:
