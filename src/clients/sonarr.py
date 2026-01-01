@@ -324,3 +324,21 @@ class SonarrClient:
             return True
         except Exception:
             return False
+
+    def get_all_series(self) -> list[dict]:
+        """
+        Get all series from Sonarr library.
+
+        Returns list of series dicts, each containing 'tvdbId' and other metadata.
+        Used for efficient bulk checking of existing shows.
+        """
+        try:
+            series = self._api.get_series()
+            logger.debug(f"Retrieved {len(series)} series from Sonarr")
+            return series
+        except PyarrError as e:
+            logger.error(f"Failed to get Sonarr series: {e}")
+            return []
+        except Exception as e:
+            logger.error(f"Unexpected error getting Sonarr series: {e}")
+            return []

@@ -37,58 +37,63 @@ class SyncConfig:
 
 
 @dataclass(frozen=True)
-class GenreFilter:
-    """Genre filter configuration."""
+class DateRange:
+    """Date range for filtering (ISO date strings)."""
 
-    exclude: list[str] = field(default_factory=list)
-
-
-@dataclass(frozen=True)
-class TypeFilter:
-    """Show type filter configuration."""
-
-    include: list[str] = field(default_factory=list)
+    after: Optional[str] = None
+    before: Optional[str] = None
 
 
 @dataclass(frozen=True)
-class CountryFilter:
-    """Country filter configuration."""
+class IntRange:
+    """Integer range for filtering."""
 
-    include: list[str] = field(default_factory=list)
-
-
-@dataclass(frozen=True)
-class LanguageFilter:
-    """Language filter configuration."""
-
-    include: list[str] = field(default_factory=list)
+    min: Optional[int] = None
+    max: Optional[int] = None
 
 
 @dataclass(frozen=True)
-class StatusFilter:
-    """Show status filter configuration."""
+class FloatRange:
+    """Float range for filtering."""
 
-    exclude_ended: bool = True
+    min: Optional[float] = None
+    max: Optional[float] = None
 
 
 @dataclass(frozen=True)
-class PremieredFilter:
-    """Premiere date filter configuration."""
+class GlobalExclude:
+    """Global exclusion rules - shows matching ANY of these are rejected."""
 
-    after: Optional[str] = None  # ISO date string
+    genres: list[str] = field(default_factory=list)
+    types: list[str] = field(default_factory=list)
+    languages: list[str] = field(default_factory=list)
+    countries: list[str] = field(default_factory=list)
+    networks: list[str] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class Selection:
+    """A selection rule - shows must match ALL criteria within a selection."""
+
+    name: Optional[str] = None
+    languages: list[str] = field(default_factory=list)
+    countries: list[str] = field(default_factory=list)
+    genres: list[str] = field(default_factory=list)
+    types: list[str] = field(default_factory=list)
+    networks: list[str] = field(default_factory=list)
+    status: list[str] = field(default_factory=list)
+    premiered: Optional[DateRange] = None
+    ended: Optional[DateRange] = None
+    rating: Optional[FloatRange] = None
+    runtime: Optional[IntRange] = None
 
 
 @dataclass(frozen=True)
 class FiltersConfig:
-    """All filter configurations."""
+    """Filter configuration with global excludes and selections."""
 
-    genres: GenreFilter = field(default_factory=GenreFilter)
-    types: TypeFilter = field(default_factory=TypeFilter)
-    countries: CountryFilter = field(default_factory=CountryFilter)
-    languages: LanguageFilter = field(default_factory=LanguageFilter)
-    status: StatusFilter = field(default_factory=StatusFilter)
-    premiered: PremieredFilter = field(default_factory=PremieredFilter)
-    min_runtime: Optional[int] = None
+    exclude: GlobalExclude = field(default_factory=GlobalExclude)
+    selections: list[Selection] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -126,6 +131,7 @@ class ServerConfig:
 
     enabled: bool = True
     port: int = 8080
+    api_key: Optional[str] = None
 
 
 @dataclass(frozen=True)
@@ -139,7 +145,12 @@ class Config:
     storage: StorageConfig
     logging: LoggingConfig
     server: ServerConfig
-    dry_run: bool = False
+    dry_run: bool = True  # Safe default - must explicitly disable
+
+    def to_dict(self) -> dict:
+        """Convert config to dictionary for JSON serialization."""
+        import dataclasses
+        return dataclasses.asdict(self)
 
 
 def resolve_env_value(value: str) -> str:
@@ -220,11 +231,14 @@ def apply_env_overrides(config_dict: dict) -> dict:
 
     Examples:
         SONARR_URL → config['sonarr']['url']
-        FILTERS_GENRES_EXCLUDE → config['filters']['genres']['exclude']
+        EXCLUDE_GENRES → config['exclude']['genres']
         SYNC_POLL_INTERVAL → config['sync']['poll_interval']
 
     List values use comma separation:
-        FILTERS_GENRES_EXCLUDE=Reality,Talk Show,Game Show
+        EXCLUDE_GENRES=Reality,Talk Show,Game Show
+
+    Note: Selections cannot be configured via environment variables
+    due to their complex nested structure. Use config file for selections.
     """
     # Map of environment variable to config path
     env_mappings = {
@@ -236,14 +250,12 @@ def apply_env_overrides(config_dict: dict) -> dict:
         "SYNC_POLL_INTERVAL": ["sync", "poll_interval"],
         "SYNC_RETRY_DELAY": ["sync", "retry_delay"],
         "SYNC_ABANDON_AFTER": ["sync", "abandon_after"],
-        # Filters
-        "FILTERS_GENRES_EXCLUDE": ["filters", "genres", "exclude"],
-        "FILTERS_TYPES_INCLUDE": ["filters", "types", "include"],
-        "FILTERS_COUNTRIES_INCLUDE": ["filters", "countries", "include"],
-        "FILTERS_LANGUAGES_INCLUDE": ["filters", "languages", "include"],
-        "FILTERS_STATUS_EXCLUDE_ENDED": ["filters", "status", "exclude_ended"],
-        "FILTERS_PREMIERED_AFTER": ["filters", "premiered", "after"],
-        "FILTERS_MIN_RUNTIME": ["filters", "min_runtime"],
+        # Global excludes
+        "EXCLUDE_GENRES": ["exclude", "genres"],
+        "EXCLUDE_TYPES": ["exclude", "types"],
+        "EXCLUDE_LANGUAGES": ["exclude", "languages"],
+        "EXCLUDE_COUNTRIES": ["exclude", "countries"],
+        "EXCLUDE_NETWORKS": ["exclude", "networks"],
         # Sonarr
         "SONARR_URL": ["sonarr", "url"],
         "SONARR_API_KEY": ["sonarr", "api_key"],
@@ -261,6 +273,7 @@ def apply_env_overrides(config_dict: dict) -> dict:
         # Server
         "SERVER_ENABLED": ["server", "enabled"],
         "SERVER_PORT": ["server", "port"],
+        "SERVER_API_KEY": ["server", "api_key"],
         # Dry run
         "DRY_RUN": ["dry_run"],
     }
@@ -270,16 +283,16 @@ def apply_env_overrides(config_dict: dict) -> dict:
             value = os.environ[env_var]
 
             # Type conversion based on the target field
-            if env_var.endswith("_EXCLUDE") or env_var.endswith("_INCLUDE") or env_var == "SONARR_TAGS":
+            if env_var.startswith("EXCLUDE_") or env_var == "SONARR_TAGS":
                 # Comma-separated list
                 value = [item.strip() for item in value.split(",") if item.strip()]
-            elif env_var in ["TVMAZE_RATE_LIMIT", "SERVER_PORT", "FILTERS_MIN_RUNTIME"]:
+            elif env_var in ["TVMAZE_RATE_LIMIT", "SERVER_PORT"]:
                 # Integer
                 try:
                     value = int(value)
                 except ValueError:
                     raise ConfigurationError(f"{env_var} must be an integer")
-            elif env_var in ["FILTERS_STATUS_EXCLUDE_ENDED", "SONARR_SEARCH_ON_ADD", "SERVER_ENABLED", "DRY_RUN"]:
+            elif env_var in ["SONARR_SEARCH_ON_ADD", "SERVER_ENABLED", "DRY_RUN"]:
                 # Boolean
                 value = value.lower() in ("true", "1", "yes", "on")
 
@@ -348,28 +361,64 @@ def load_config(path: Path | None = None) -> Config:
             abandon_after=sync_data.get("abandon_after", "1y"),
         )
 
-        # Filters
-        filters_data = config_dict.get("filters", {})
+        # Global excludes (handle None from empty YAML value)
+        exclude_data = config_dict.get("exclude") or {}
+        global_exclude = GlobalExclude(
+            genres=exclude_data.get("genres") or [],
+            types=exclude_data.get("types") or [],
+            languages=exclude_data.get("languages") or [],
+            countries=exclude_data.get("countries") or [],
+            networks=exclude_data.get("networks") or [],
+        )
+
+        # Selections (handle None from empty YAML value)
+        selections_data = config_dict.get("selections") or []
+        selections = []
+        for sel_data in selections_data:
+            # Parse nested date ranges
+            premiered_data = sel_data.get("premiered")
+            premiered = DateRange(
+                after=premiered_data.get("after"),
+                before=premiered_data.get("before")
+            ) if premiered_data else None
+
+            ended_data = sel_data.get("ended")
+            ended = DateRange(
+                after=ended_data.get("after"),
+                before=ended_data.get("before")
+            ) if ended_data else None
+
+            # Parse nested numeric ranges
+            rating_data = sel_data.get("rating")
+            rating = FloatRange(
+                min=rating_data.get("min"),
+                max=rating_data.get("max")
+            ) if rating_data else None
+
+            runtime_data = sel_data.get("runtime")
+            runtime = IntRange(
+                min=runtime_data.get("min"),
+                max=runtime_data.get("max")
+            ) if runtime_data else None
+
+            selection = Selection(
+                name=sel_data.get("name"),
+                languages=sel_data.get("languages", []),
+                countries=sel_data.get("countries", []),
+                genres=sel_data.get("genres", []),
+                types=sel_data.get("types", []),
+                networks=sel_data.get("networks", []),
+                status=sel_data.get("status", []),
+                premiered=premiered,
+                ended=ended,
+                rating=rating,
+                runtime=runtime,
+            )
+            selections.append(selection)
+
         filters = FiltersConfig(
-            genres=GenreFilter(
-                exclude=filters_data.get("genres", {}).get("exclude", [])
-            ),
-            types=TypeFilter(
-                include=filters_data.get("types", {}).get("include", [])
-            ),
-            countries=CountryFilter(
-                include=filters_data.get("countries", {}).get("include", [])
-            ),
-            languages=LanguageFilter(
-                include=filters_data.get("languages", {}).get("include", [])
-            ),
-            status=StatusFilter(
-                exclude_ended=filters_data.get("status", {}).get("exclude_ended", True)
-            ),
-            premiered=PremieredFilter(
-                after=filters_data.get("premiered", {}).get("after")
-            ),
-            min_runtime=filters_data.get("min_runtime"),
+            exclude=global_exclude,
+            selections=selections,
         )
 
         # Sonarr
@@ -412,10 +461,11 @@ def load_config(path: Path | None = None) -> Config:
         server = ServerConfig(
             enabled=server_data.get("enabled", True),
             port=server_data.get("port", 8080),
+            api_key=server_data.get("api_key"),
         )
 
-        # Dry run
-        dry_run = config_dict.get("dry_run", False)
+        # Dry run - defaults to True for safety
+        dry_run = config_dict.get("dry_run", True)
 
         config = Config(
             tvmaze=tvmaze,
@@ -474,6 +524,10 @@ def validate_config(config: Config) -> None:
     if not isinstance(config.server.port, int) or config.server.port < 1 or config.server.port > 65535:
         errors.append(f"Invalid server.port: {config.server.port}. Must be between 1 and 65535")
 
+    # Validate server API key (required when server is enabled)
+    if config.server.enabled and not config.server.api_key:
+        errors.append("server.api_key is required when server is enabled")
+
     # Validate TVMaze update window
     valid_windows = ["day", "week", "month"]
     if config.tvmaze.update_window not in valid_windows:
@@ -490,16 +544,48 @@ def validate_config(config: Config) -> None:
             f"Must be one of: {', '.join(valid_monitors)}"
         )
 
-    # Validate premiered.after date format if specified
-    if config.filters.premiered.after:
-        try:
-            from datetime import date
-            date.fromisoformat(config.filters.premiered.after)
-        except ValueError:
-            errors.append(
-                f"Invalid filters.premiered.after: {config.filters.premiered.after}. "
-                f"Must be ISO date format (YYYY-MM-DD)"
-            )
+    # Validate date ranges in selections
+    from datetime import date as date_type
+    for i, selection in enumerate(config.filters.selections):
+        sel_name = selection.name or f"selection[{i}]"
+
+        # Validate premiered dates
+        if selection.premiered:
+            if selection.premiered.after:
+                try:
+                    date_type.fromisoformat(selection.premiered.after)
+                except ValueError:
+                    errors.append(
+                        f"Invalid {sel_name}.premiered.after: {selection.premiered.after}. "
+                        f"Must be ISO date format (YYYY-MM-DD)"
+                    )
+            if selection.premiered.before:
+                try:
+                    date_type.fromisoformat(selection.premiered.before)
+                except ValueError:
+                    errors.append(
+                        f"Invalid {sel_name}.premiered.before: {selection.premiered.before}. "
+                        f"Must be ISO date format (YYYY-MM-DD)"
+                    )
+
+        # Validate ended dates
+        if selection.ended:
+            if selection.ended.after:
+                try:
+                    date_type.fromisoformat(selection.ended.after)
+                except ValueError:
+                    errors.append(
+                        f"Invalid {sel_name}.ended.after: {selection.ended.after}. "
+                        f"Must be ISO date format (YYYY-MM-DD)"
+                    )
+            if selection.ended.before:
+                try:
+                    date_type.fromisoformat(selection.ended.before)
+                except ValueError:
+                    errors.append(
+                        f"Invalid {sel_name}.ended.before: {selection.ended.before}. "
+                        f"Must be ISO date format (YYYY-MM-DD)"
+                    )
 
     if errors:
         raise ConfigurationError("Configuration validation failed:\n" + "\n".join(f"  - {e}" for e in errors))

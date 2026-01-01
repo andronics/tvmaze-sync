@@ -26,57 +26,77 @@ sync:
   # Time before abandoning shows without TVDB IDs
   abandon_after: "1y"
 
-# Show Filtering Configuration
-filters:
-  # Genre filters
+# =============================================================================
+# Show Selection Configuration
+#
+# Shows are processed in this order:
+#   1. Global exclude rules are checked first - matching shows are rejected
+#   2. Selections are evaluated - show must match at least ONE selection
+#
+# Empty selections list = all shows rejected (forces explicit configuration)
+# =============================================================================
+
+# Global Exclude Rules - shows matching ANY of these criteria are rejected
+exclude:
+  # Exclude shows with these genres
   genres:
-    # Exclude shows with these genres
-    exclude:
-      - "Reality"
-      - "Talk Show"
-      - "Game Show"
-      - "News"
-      - "Sports"
+    - "Reality"
+    - "Talk Show"
+    - "Game Show"
+    - "News"
+    - "Sports"
 
-  # Show type filters
-  types:
-    # Only include these show types (leave empty to include all)
-    include:
-      - "Scripted"
-      - "Animation"
-      - "Documentary"
+  # Exclude shows of these types
+  types: []
 
-  # Country filters (ISO 3166-1 country codes)
-  countries:
-    # Only include shows from these countries (leave empty to include all)
-    # Note: UK is "GB" not "UK"
-    include:
+  # Exclude shows in these languages
+  languages: []
+
+  # Exclude shows from these countries (ISO 3166-1 codes, e.g., "GB" not "UK")
+  countries: []
+
+  # Exclude shows from these networks
+  networks:
+    - "Home Shopping Network"
+
+# Selections - show must match ALL criteria within a selection,
+# but only needs to match ONE selection overall (OR logic between selections)
+selections:
+  # Example: English-language scripted shows from English-speaking countries
+  - name: "English Scripted"
+    languages:
+      - "English"
+    countries:
       - "US"
       - "GB"
       - "CA"
       - "AU"
       - "NZ"
       - "IE"
+    types:
+      - "Scripted"
+      - "Animation"
+    # status:
+    #   - "Running"
+    #   - "In Development"
+    premiered:
+      after: "2010-01-01"  # ISO date format YYYY-MM-DD
+      # before: "2025-12-31"  # Optional upper bound
+    rating:
+      min: 6.0  # Minimum TVMaze rating (0-10)
+      # max: 10.0
+    runtime:
+      min: 20  # Minimum episode runtime in minutes
+      # max: 90
 
-  # Language filters
-  languages:
-    # Only include shows in these languages (leave empty to include all)
-    include:
-      - "English"
-
-  # Status filters
-  status:
-    # Exclude shows that have ended
-    exclude_ended: true
-
-  # Premiere date filters
-  premiered:
-    # Only include shows that premiered after this date (ISO format: YYYY-MM-DD)
-    # Set to null to disable
-    after: "2010-01-01"
-
-  # Minimum runtime in minutes (set to null to disable)
-  min_runtime: 20
+  # Example: High-rated documentaries from any country
+  - name: "Quality Documentaries"
+    types:
+      - "Documentary"
+    rating:
+      min: 7.5
+    premiered:
+      after: "2015-01-01"
 
 # Sonarr Configuration
 sonarr:
@@ -130,6 +150,11 @@ server:
   # Port to listen on
   port: 8080
 
+  # API key for protected endpoints (required)
+  # Public endpoints: /health, /ready, /metrics
+  # Protected endpoints: /config, /trigger, /state, /shows, /refilter
+  api_key: "${SERVER_API_KEY}"
+
 # Dry Run Mode
-# If true, process shows but don't actually add to Sonarr
-dry_run: false
+# Defaults to true for safety - set to false when ready to add shows to Sonarr
+dry_run: false  # Set to true to test without adding shows

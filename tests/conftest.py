@@ -9,11 +9,11 @@ import pytest
 from src.config import (
     Config,
     FiltersConfig,
-    GenreFilter,
+    GlobalExclude,
     LoggingConfig,
+    Selection,
     ServerConfig,
     SonarrConfig,
-    StatusFilter,
     StorageConfig,
     SyncConfig,
     TVMazeConfig,
@@ -87,8 +87,13 @@ def test_config():
         tvmaze=TVMazeConfig(),
         sync=SyncConfig(),
         filters=FiltersConfig(
-            genres=GenreFilter(exclude=["Reality", "Talk Show"]),
-            status=StatusFilter(exclude_ended=False)
+            exclude=GlobalExclude(genres=["Reality", "Talk Show"]),
+            selections=[
+                Selection(
+                    name="English Shows",
+                    languages=["English"],
+                )
+            ]
         ),
         sonarr=SonarrConfig(
             url="http://localhost:8989",
@@ -98,7 +103,7 @@ def test_config():
         ),
         storage=StorageConfig(path="/tmp/test"),
         logging=LoggingConfig(),
-        server=ServerConfig(),
+        server=ServerConfig(api_key="test-key"),
         dry_run=False
     )
 
@@ -424,6 +429,30 @@ def flask_app(mock_flask_dependencies):
 def flask_client(flask_app):
     """Create Flask test client."""
     return flask_app.test_client()
+
+
+class AuthenticatedClient:
+    """Test client wrapper that adds API key header to all requests."""
+
+    def __init__(self, client, api_key="test-key"):
+        self._client = client
+        self._headers = {"X-API-Key": api_key}
+
+    def get(self, *args, **kwargs):
+        headers = kwargs.pop("headers", {})
+        headers.update(self._headers)
+        return self._client.get(*args, headers=headers, **kwargs)
+
+    def post(self, *args, **kwargs):
+        headers = kwargs.pop("headers", {})
+        headers.update(self._headers)
+        return self._client.post(*args, headers=headers, **kwargs)
+
+
+@pytest.fixture
+def auth_client(flask_client):
+    """Create authenticated Flask test client."""
+    return AuthenticatedClient(flask_client)
 
 
 # Scheduler fixtures

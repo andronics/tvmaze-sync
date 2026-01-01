@@ -4,14 +4,13 @@ import pytest
 from datetime import date
 
 from src.config import (
-    CountryFilter,
+    DateRange,
     FiltersConfig,
-    GenreFilter,
-    LanguageFilter,
-    PremieredFilter,
+    FloatRange,
+    GlobalExclude,
+    IntRange,
+    Selection,
     SonarrConfig,
-    StatusFilter,
-    TypeFilter,
 )
 from src.models import Decision, Show
 from src.processor import ShowProcessor, compute_filter_hash
@@ -20,7 +19,9 @@ from src.processor import ShowProcessor, compute_filter_hash
 @pytest.mark.unit
 def test_processor_check_tvdb_id():
     """Test processor checks for TVDB ID."""
-    config = FiltersConfig()
+    config = FiltersConfig(
+        selections=[Selection(name="All")]  # Need at least one selection
+    )
     sonarr_config = SonarrConfig(
         url="http://localhost",
         api_key="test",
@@ -41,10 +42,11 @@ def test_processor_check_tvdb_id():
 
 
 @pytest.mark.unit
-def test_processor_filter_by_genre():
-    """Test processor filters by genre."""
+def test_processor_filter_by_excluded_genre():
+    """Test processor filters by excluded genre."""
     config = FiltersConfig(
-        genres=GenreFilter(exclude=["Reality", "Talk Show"])
+        exclude=GlobalExclude(genres=["Reality", "Talk Show"]),
+        selections=[Selection(name="All")]
     )
     sonarr_config = SonarrConfig(
         url="http://localhost",
@@ -63,15 +65,17 @@ def test_processor_filter_by_genre():
 
     result = processor.process(show)
     assert result.decision == Decision.FILTER
-    assert result.filter_category == "genre"
+    assert result.filter_category == "exclude"
     assert "Reality" in result.reason
 
 
 @pytest.mark.unit
-def test_processor_filter_by_language():
-    """Test processor filters by language."""
+def test_processor_filter_by_selection_language():
+    """Test processor filters by selection language."""
     config = FiltersConfig(
-        languages=LanguageFilter(include=["English"])
+        selections=[
+            Selection(name="English Only", languages=["English"])
+        ]
     )
     sonarr_config = SonarrConfig(
         url="http://localhost",
@@ -90,14 +94,17 @@ def test_processor_filter_by_language():
 
     result = processor.process(show)
     assert result.decision == Decision.FILTER
-    assert result.filter_category == "language"
+    assert result.filter_category == "selection"
+    assert "No selection matched" in result.reason
 
 
 @pytest.mark.unit
-def test_processor_filter_by_country():
-    """Test processor filters by country."""
+def test_processor_filter_by_selection_country():
+    """Test processor filters by selection country."""
     config = FiltersConfig(
-        countries=CountryFilter(include=["US", "GB"])
+        selections=[
+            Selection(name="US/UK Only", countries=["US", "GB"])
+        ]
     )
     sonarr_config = SonarrConfig(
         url="http://localhost",
@@ -116,14 +123,14 @@ def test_processor_filter_by_country():
 
     result = processor.process(show)
     assert result.decision == Decision.FILTER
-    assert result.filter_category == "country"
+    assert result.filter_category == "selection"
 
 
 @pytest.mark.unit
-def test_processor_filter_by_status_ended():
-    """Test processor filters ended shows."""
+def test_processor_no_selections_configured():
+    """Test processor filters all shows when no selections configured."""
     config = FiltersConfig(
-        status=StatusFilter(exclude_ended=True)
+        selections=[]  # Empty selections = reject all
     )
     sonarr_config = SonarrConfig(
         url="http://localhost",
@@ -135,21 +142,26 @@ def test_processor_filter_by_status_ended():
 
     show = Show(
         tvmaze_id=1,
-        title="Ended Show",
+        title="Any Show",
         tvdb_id=12345,
-        status="Ended"
+        language="English"
     )
 
     result = processor.process(show)
     assert result.decision == Decision.FILTER
-    assert result.filter_category == "status"
+    assert "No selections configured" in result.reason
 
 
 @pytest.mark.unit
 def test_processor_filter_by_premiered_date():
-    """Test processor filters by premiere date."""
+    """Test processor filters by premiere date in selection."""
     config = FiltersConfig(
-        premiered=PremieredFilter(after="2010-01-01")
+        selections=[
+            Selection(
+                name="Recent Shows",
+                premiered=DateRange(after="2010-01-01")
+            )
+        ]
     )
     sonarr_config = SonarrConfig(
         url="http://localhost",
@@ -168,13 +180,19 @@ def test_processor_filter_by_premiered_date():
 
     result = processor.process(show)
     assert result.decision == Decision.FILTER
-    assert result.filter_category == "premiered"
 
 
 @pytest.mark.unit
 def test_processor_filter_by_runtime():
-    """Test processor filters by runtime."""
-    config = FiltersConfig(min_runtime=30)
+    """Test processor filters by runtime in selection."""
+    config = FiltersConfig(
+        selections=[
+            Selection(
+                name="Long Episodes",
+                runtime=IntRange(min=30)
+            )
+        ]
+    )
     sonarr_config = SonarrConfig(
         url="http://localhost",
         api_key="test",
@@ -192,18 +210,51 @@ def test_processor_filter_by_runtime():
 
     result = processor.process(show)
     assert result.decision == Decision.FILTER
-    assert result.filter_category == "runtime"
+
+
+@pytest.mark.unit
+def test_processor_filter_by_rating():
+    """Test processor filters by rating in selection."""
+    config = FiltersConfig(
+        selections=[
+            Selection(
+                name="Highly Rated",
+                rating=FloatRange(min=7.0)
+            )
+        ]
+    )
+    sonarr_config = SonarrConfig(
+        url="http://localhost",
+        api_key="test",
+        root_folder="/tv",
+        quality_profile="HD"
+    )
+    processor = ShowProcessor(config, sonarr_config)
+
+    show = Show(
+        tvmaze_id=1,
+        title="Low Rated Show",
+        tvdb_id=12345,
+        rating=5.5
+    )
+
+    result = processor.process(show)
+    assert result.decision == Decision.FILTER
 
 
 @pytest.mark.unit
 def test_processor_passes_all_filters():
-    """Test show that passes all filters."""
+    """Test show that passes all selection criteria."""
     config = FiltersConfig(
-        genres=GenreFilter(exclude=["Reality"]),
-        types=TypeFilter(include=["Scripted"]),
-        languages=LanguageFilter(include=["English"]),
-        countries=CountryFilter(include=["US"]),
-        status=StatusFilter(exclude_ended=False)
+        exclude=GlobalExclude(genres=["Reality"]),
+        selections=[
+            Selection(
+                name="English Scripted",
+                types=["Scripted"],
+                languages=["English"],
+                countries=["US"]
+            )
+        ]
     )
     sonarr_config = SonarrConfig(
         url="http://localhost",
@@ -236,16 +287,87 @@ def test_processor_passes_all_filters():
 
 
 @pytest.mark.unit
+def test_processor_matches_any_selection():
+    """Test show matches if it matches ANY selection (OR logic)."""
+    config = FiltersConfig(
+        selections=[
+            Selection(name="French", languages=["French"]),
+            Selection(name="English", languages=["English"]),
+        ]
+    )
+    sonarr_config = SonarrConfig(
+        url="http://localhost",
+        api_key="test",
+        root_folder="/tv",
+        quality_profile="HD"
+    )
+    processor = ShowProcessor(config, sonarr_config)
+    processor.set_validated_sonarr_params(
+        root_folder="/tv",
+        quality_profile_id=1,
+        language_profile_id=None,
+        tag_ids=[]
+    )
+
+    show = Show(
+        tvmaze_id=1,
+        title="English Show",
+        tvdb_id=12345,
+        language="English"
+    )
+
+    result = processor.process(show)
+    assert result.decision == Decision.ADD
+    assert "English" in result.reason
+
+
+@pytest.mark.unit
+def test_processor_selection_all_criteria_must_match():
+    """Test all criteria within a selection must match (AND logic)."""
+    config = FiltersConfig(
+        selections=[
+            Selection(
+                name="English from US",
+                languages=["English"],
+                countries=["US"]
+            )
+        ]
+    )
+    sonarr_config = SonarrConfig(
+        url="http://localhost",
+        api_key="test",
+        root_folder="/tv",
+        quality_profile="HD"
+    )
+    processor = ShowProcessor(config, sonarr_config)
+
+    # English but from UK - should not match
+    show = Show(
+        tvmaze_id=1,
+        title="British Show",
+        tvdb_id=12345,
+        language="English",
+        country="GB"
+    )
+
+    result = processor.process(show)
+    assert result.decision == Decision.FILTER
+
+
+@pytest.mark.unit
 def test_compute_filter_hash():
     """Test filter hash computation."""
     config1 = FiltersConfig(
-        genres=GenreFilter(exclude=["Reality", "Talk Show"])
+        exclude=GlobalExclude(genres=["Reality", "Talk Show"]),
+        selections=[Selection(name="All")]
     )
     config2 = FiltersConfig(
-        genres=GenreFilter(exclude=["Talk Show", "Reality"])  # Different order
+        exclude=GlobalExclude(genres=["Talk Show", "Reality"]),  # Different order
+        selections=[Selection(name="All")]
     )
     config3 = FiltersConfig(
-        genres=GenreFilter(exclude=["Reality"])  # Different content
+        exclude=GlobalExclude(genres=["Reality"]),  # Different content
+        selections=[Selection(name="All")]
     )
 
     hash1 = compute_filter_hash(config1)
@@ -259,13 +381,10 @@ def test_compute_filter_hash():
     assert hash1 != hash3
 
 
-# Additional tests for comprehensive coverage
-
-
 @pytest.mark.unit
 def test_set_validated_sonarr_params():
     """Test setting validated Sonarr parameters."""
-    config = FiltersConfig()
+    config = FiltersConfig(selections=[Selection(name="All")])
     sonarr_config = SonarrConfig(
         url="http://localhost",
         api_key="test",
@@ -294,47 +413,9 @@ def test_set_validated_sonarr_params():
 
 
 @pytest.mark.unit
-def test_check_type_directly():
-    """Test _check_type() method with type filtering."""
-    config = FiltersConfig(
-        types=TypeFilter(include=["Scripted", "Animation"])
-    )
-    sonarr_config = SonarrConfig(
-        url="http://localhost",
-        api_key="test",
-        root_folder="/tv",
-        quality_profile="HD"
-    )
-    processor = ShowProcessor(config, sonarr_config)
-
-    # Show with included type
-    show_scripted = Show(
-        tvmaze_id=1,
-        title="Drama Show",
-        tvdb_id=12345,
-        type="Scripted"
-    )
-    result = processor._check_type(show_scripted)
-    assert result is None  # Passes filter
-
-    # Show with excluded type
-    show_reality = Show(
-        tvmaze_id=2,
-        title="Reality Show",
-        tvdb_id=12346,
-        type="Reality"
-    )
-    result = processor._check_type(show_reality)
-    assert result is not None
-    assert result.decision == Decision.FILTER
-    assert result.filter_category == "type"
-    assert "Reality" in result.reason
-
-
-@pytest.mark.unit
 def test_build_sonarr_params_without_validation():
     """Test _build_sonarr_params() raises error without validation."""
-    config = FiltersConfig()
+    config = FiltersConfig(selections=[Selection(name="All")])
     sonarr_config = SonarrConfig(
         url="http://localhost",
         api_key="test",
@@ -362,7 +443,8 @@ def test_check_filter_change_no_previous_hash(test_db, test_state):
     from src.processor import check_filter_change
 
     config = FiltersConfig(
-        genres=GenreFilter(exclude=["Reality"])
+        exclude=GlobalExclude(genres=["Reality"]),
+        selections=[Selection(name="All")]
     )
     sonarr_config = SonarrConfig(
         url="http://localhost",
@@ -395,14 +477,16 @@ def test_check_filter_change_hash_changed(test_db, test_state, sample_show):
 
     # Old config with Reality excluded
     old_config = FiltersConfig(
-        genres=GenreFilter(exclude=["Reality"])
+        exclude=GlobalExclude(genres=["Reality"]),
+        selections=[Selection(name="All")]
     )
     old_hash = compute_filter_hash(old_config)
     test_state.last_filter_hash = old_hash
 
     # New config with different exclusions
     new_config = FiltersConfig(
-        genres=GenreFilter(exclude=["Talk Show"])
+        exclude=GlobalExclude(genres=["Talk Show"]),
+        selections=[Selection(name="All")]
     )
     sonarr_config = SonarrConfig(
         url="http://localhost",
@@ -434,7 +518,8 @@ def test_check_filter_change_hash_unchanged(test_db, test_state):
     from src.processor import check_filter_change
 
     config = FiltersConfig(
-        genres=GenreFilter(exclude=["Reality"])
+        exclude=GlobalExclude(genres=["Reality"]),
+        selections=[Selection(name="All")]
     )
     sonarr_config = SonarrConfig(
         url="http://localhost",
@@ -475,8 +560,10 @@ def test_re_evaluate_filtered_shows_status_change(test_db):
     test_db.upsert_show(show)
     test_db.mark_show_filtered(show.tvmaze_id, "Excluded genre: Reality", "genre")
 
-    # New processor with no genre filters (show should now pass)
-    config = FiltersConfig()
+    # New processor with selection that accepts the show
+    config = FiltersConfig(
+        selections=[Selection(name="All")]  # Accepts everything
+    )
     sonarr_config = SonarrConfig(
         url="http://localhost",
         api_key="test",
@@ -522,7 +609,9 @@ def test_re_evaluate_filtered_shows_reason_update(test_db):
 
     # New processor filtering by type instead of genre
     config = FiltersConfig(
-        types=TypeFilter(include=["Scripted", "Animation"])
+        selections=[
+            Selection(name="Scripted Only", types=["Scripted", "Animation"])
+        ]
     )
     sonarr_config = SonarrConfig(
         url="http://localhost",
@@ -539,5 +628,222 @@ def test_re_evaluate_filtered_shows_reason_update(test_db):
     assert retrieved is not None
     # Should still be filtered
     assert retrieved.processing_status == ProcessingStatus.FILTERED
-    # Reason should be updated to type-based filter
-    assert "type" in retrieved.filter_reason.lower() or "Reality" in retrieved.filter_reason
+
+
+@pytest.mark.unit
+def test_global_exclude_types():
+    """Test global exclude filters by type."""
+    config = FiltersConfig(
+        exclude=GlobalExclude(types=["News", "Sports"]),
+        selections=[Selection(name="All")]
+    )
+    sonarr_config = SonarrConfig(
+        url="http://localhost",
+        api_key="test",
+        root_folder="/tv",
+        quality_profile="HD"
+    )
+    processor = ShowProcessor(config, sonarr_config)
+
+    show = Show(
+        tvmaze_id=1,
+        title="News Show",
+        tvdb_id=12345,
+        type="News"
+    )
+
+    result = processor.process(show)
+    assert result.decision == Decision.FILTER
+    assert "Excluded type" in result.reason
+
+
+@pytest.mark.unit
+def test_global_exclude_networks():
+    """Test global exclude filters by network."""
+    config = FiltersConfig(
+        exclude=GlobalExclude(networks=["Home Shopping Network"]),
+        selections=[Selection(name="All")]
+    )
+    sonarr_config = SonarrConfig(
+        url="http://localhost",
+        api_key="test",
+        root_folder="/tv",
+        quality_profile="HD"
+    )
+    processor = ShowProcessor(config, sonarr_config)
+
+    show = Show(
+        tvmaze_id=1,
+        title="Shopping Show",
+        tvdb_id=12345,
+        network="Home Shopping Network"
+    )
+
+    result = processor.process(show)
+    assert result.decision == Decision.FILTER
+    assert "network" in result.reason.lower()
+
+
+@pytest.mark.unit
+def test_selection_status_filter():
+    """Test selection filters by status."""
+    config = FiltersConfig(
+        selections=[
+            Selection(name="Running Only", status=["Running"])
+        ]
+    )
+    sonarr_config = SonarrConfig(
+        url="http://localhost",
+        api_key="test",
+        root_folder="/tv",
+        quality_profile="HD"
+    )
+    processor = ShowProcessor(config, sonarr_config)
+
+    show = Show(
+        tvmaze_id=1,
+        title="Ended Show",
+        tvdb_id=12345,
+        status="Ended"
+    )
+
+    result = processor.process(show)
+    assert result.decision == Decision.FILTER
+
+
+@pytest.mark.unit
+def test_selection_genre_filter():
+    """Test selection filters by genre (show must have at least one matching)."""
+    config = FiltersConfig(
+        selections=[
+            Selection(name="Sci-Fi/Fantasy", genres=["Science-Fiction", "Fantasy"])
+        ]
+    )
+    sonarr_config = SonarrConfig(
+        url="http://localhost",
+        api_key="test",
+        root_folder="/tv",
+        quality_profile="HD"
+    )
+    processor = ShowProcessor(config, sonarr_config)
+    processor.set_validated_sonarr_params(
+        root_folder="/tv",
+        quality_profile_id=1,
+        language_profile_id=None,
+        tag_ids=[]
+    )
+
+    # Show with matching genre
+    show_match = Show(
+        tvmaze_id=1,
+        title="Fantasy Show",
+        tvdb_id=12345,
+        genres=["Fantasy", "Drama"]
+    )
+    result = processor.process(show_match)
+    assert result.decision == Decision.ADD
+
+    # Show without matching genre
+    show_no_match = Show(
+        tvmaze_id=2,
+        title="Drama Show",
+        tvdb_id=12346,
+        genres=["Drama", "Crime"]
+    )
+    result = processor.process(show_no_match)
+    assert result.decision == Decision.FILTER
+
+
+@pytest.mark.unit
+def test_selection_ended_date_range():
+    """Test selection filters by ended date range."""
+    config = FiltersConfig(
+        selections=[
+            Selection(
+                name="Recently Ended",
+                ended=DateRange(after="2020-01-01")
+            )
+        ]
+    )
+    sonarr_config = SonarrConfig(
+        url="http://localhost",
+        api_key="test",
+        root_folder="/tv",
+        quality_profile="HD"
+    )
+    processor = ShowProcessor(config, sonarr_config)
+
+    # Show that ended too early
+    show = Show(
+        tvmaze_id=1,
+        title="Old Show",
+        tvdb_id=12345,
+        ended=date(2015, 6, 15)
+    )
+
+    result = processor.process(show)
+    assert result.decision == Decision.FILTER
+
+
+@pytest.mark.unit
+def test_selection_rating_max():
+    """Test selection filters by max rating."""
+    config = FiltersConfig(
+        selections=[
+            Selection(
+                name="Moderate Rating",
+                rating=FloatRange(min=5.0, max=8.0)
+            )
+        ]
+    )
+    sonarr_config = SonarrConfig(
+        url="http://localhost",
+        api_key="test",
+        root_folder="/tv",
+        quality_profile="HD"
+    )
+    processor = ShowProcessor(config, sonarr_config)
+
+    # Show with rating too high
+    show = Show(
+        tvmaze_id=1,
+        title="Highly Rated Show",
+        tvdb_id=12345,
+        rating=9.5
+    )
+
+    result = processor.process(show)
+    assert result.decision == Decision.FILTER
+
+
+@pytest.mark.unit
+def test_empty_selection_matches_everything():
+    """Test that an empty selection (no criteria) matches any show."""
+    config = FiltersConfig(
+        selections=[Selection(name="All")]  # No criteria = matches all
+    )
+    sonarr_config = SonarrConfig(
+        url="http://localhost",
+        api_key="test",
+        root_folder="/tv",
+        quality_profile="HD"
+    )
+    processor = ShowProcessor(config, sonarr_config)
+    processor.set_validated_sonarr_params(
+        root_folder="/tv",
+        quality_profile_id=1,
+        language_profile_id=None,
+        tag_ids=[]
+    )
+
+    show = Show(
+        tvmaze_id=1,
+        title="Random Show",
+        tvdb_id=12345,
+        language="Japanese",
+        country="JP",
+        type="Animation"
+    )
+
+    result = processor.process(show)
+    assert result.decision == Decision.ADD

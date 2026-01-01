@@ -54,18 +54,18 @@ def test_resolve_env_value_missing():
 def test_apply_env_overrides():
     """Test applying environment variable overrides."""
     os.environ["SONARR_URL"] = "http://test:8989"
-    os.environ["FILTERS_GENRES_EXCLUDE"] = "Reality,Talk Show"
+    os.environ["EXCLUDE_GENRES"] = "Reality,Talk Show"
     os.environ["DRY_RUN"] = "true"
 
     config = {}
     config = apply_env_overrides(config)
 
     assert config.get("sonarr", {}).get("url") == "http://test:8989"
-    assert config.get("filters", {}).get("genres", {}).get("exclude") == ["Reality", "Talk Show"]
+    assert config.get("exclude", {}).get("genres") == ["Reality", "Talk Show"]
     assert config.get("dry_run") is True
 
     del os.environ["SONARR_URL"]
-    del os.environ["FILTERS_GENRES_EXCLUDE"]
+    del os.environ["EXCLUDE_GENRES"]
     del os.environ["DRY_RUN"]
 
 
@@ -76,6 +76,7 @@ def test_load_config_from_env_only():
     os.environ["SONARR_API_KEY"] = "test_key"
     os.environ["SONARR_ROOT_FOLDER"] = "/tv"
     os.environ["SONARR_QUALITY_PROFILE"] = "HD"
+    os.environ["SERVER_API_KEY"] = "test-server-key"
 
     try:
         config = load_config(Path("/nonexistent/config.yaml"))
@@ -84,12 +85,14 @@ def test_load_config_from_env_only():
         assert config.sonarr.api_key == "test_key"
         assert config.sonarr.root_folder == "/tv"
         assert config.sonarr.quality_profile == "HD"
+        assert config.server.api_key == "test-server-key"
 
     finally:
         del os.environ["SONARR_URL"]
         del os.environ["SONARR_API_KEY"]
         del os.environ["SONARR_ROOT_FOLDER"]
         del os.environ["SONARR_QUALITY_PROFILE"]
+        del os.environ["SERVER_API_KEY"]
 
 
 @pytest.mark.unit
@@ -167,6 +170,9 @@ def test_load_config_from_yaml():
                 "api_key": "test_key",
                 "root_folder": "/tv",
                 "quality_profile": "HD-1080p"
+            },
+            "server": {
+                "api_key": "test-server-key"
             }
         }
         yaml.dump(config_data, f)
@@ -176,6 +182,7 @@ def test_load_config_from_yaml():
         config = load_config(config_path)
         assert config.sonarr.url == "http://localhost:8989"
         assert config.sonarr.api_key == "test_key"
+        assert config.server.api_key == "test-server-key"
     finally:
         os.unlink(config_path)
 
@@ -253,16 +260,13 @@ def test_validate_config_invalid_monitor_mode(test_config):
 @pytest.mark.unit
 def test_apply_env_overrides_integer_parsing():
     """Test integer parsing in environment overrides."""
-    os.environ["FILTERS_MIN_RUNTIME"] = "30"
     os.environ["SERVER_PORT"] = "8080"
 
     config = {}
     config = apply_env_overrides(config)
 
-    assert config.get("filters", {}).get("min_runtime") == 30
     assert config.get("server", {}).get("port") == 8080
 
-    del os.environ["FILTERS_MIN_RUNTIME"]
     del os.environ["SERVER_PORT"]
 
 
@@ -295,12 +299,14 @@ def test_apply_env_overrides_boolean_parsing():
 
 @pytest.mark.unit
 def test_validate_config_invalid_premiered_after(test_config):
-    """Test validation with invalid premiered_after date format."""
-    from src.config import FiltersConfig, PremieredFilter
+    """Test validation with invalid premiered date format in selection."""
+    from src.config import DateRange, FiltersConfig, Selection
 
     test_config = test_config.__class__(
-        **{**test_config.__dict__, "filters": FiltersConfig(premiered=PremieredFilter(after="invalid-date"))}
+        **{**test_config.__dict__, "filters": FiltersConfig(
+            selections=[Selection(name="Test", premiered=DateRange(after="invalid-date"))]
+        )}
     )
 
-    with pytest.raises(ConfigurationError, match="Invalid filters.premiered.after"):
+    with pytest.raises(ConfigurationError, match="Invalid Test.premiered.after"):
         validate_config(test_config)

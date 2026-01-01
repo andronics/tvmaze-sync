@@ -10,7 +10,7 @@ TVMaze-Sync is a Docker-native service that automatically discovers TV shows fro
 ## Features
 
 - ✅ **Automated Discovery**: Automatically sync TV shows from TVMaze to Sonarr
-- 🎯 **Smart Filtering**: Filter shows by genre, language, country, type, status, premiere date, and runtime
+- 🎯 **Smart Selections**: Multiple selection rules with global excludes - filter by genre, language, country, type, status, dates, rating, and runtime
 - 💾 **Efficient Caching**: SQLite database cache (~70k shows, ~15-20MB)
 - 🔄 **Incremental Syncing**: Initial full sync, then efficient incremental updates
 - 🧪 **Dry Run Mode**: Test filters without actually adding shows to Sonarr
@@ -88,9 +88,10 @@ sonarr:
   root_folder: "/tv"
   quality_profile: "HD-1080p"
 
-filters:
-  languages:
-    include: ["English"]
+# At least one selection is required
+selections:
+  - name: "English Shows"
+    languages: ["English"]
 ```
 
 ### Full Configuration
@@ -108,25 +109,39 @@ sync:
   retry_delay: "1w"                  # Retry pending_tvdb shows after this delay
   abandon_after: "1y"                # Abandon pending_tvdb shows after this time
 
-filters:
-  genres:
-    exclude: ["Reality", "Talk Show", "Game Show", "News", "Sports"]
+# Global exclusions - shows matching ANY criteria are rejected
+exclude:
+  genres: ["Reality", "Talk Show", "Game Show", "News", "Sports"]
+  types: []
+  languages: []
+  countries: []
+  networks: ["Home Shopping Network"]
 
-  languages:
-    include: ["English"]             # Filter by language
+# Selections - show must match ALL criteria within a selection,
+# but only needs to match ONE selection overall (OR logic)
+# Empty selections list = all shows rejected
+selections:
+  - name: "English Scripted"
+    languages: ["English"]
+    countries: ["US", "GB", "CA", "AU"]     # ISO 3166-1 codes (GB, not UK)
+    types: ["Scripted", "Animation"]
+    # status: ["Running", "In Development"]  # Optional status filter
+    premiered:
+      after: "2010-01-01"                    # ISO format YYYY-MM-DD
+      # before: "2025-12-31"
+    rating:
+      min: 6.0                               # TVMaze rating (0-10)
+      # max: 10.0
+    runtime:
+      min: 20                                # Minutes
+      # max: 90
 
-  countries:
-    include: ["US", "GB", "CA"]      # ISO 3166-1 country codes (GB, not UK)
-
-  types:
-    include: ["Scripted"]            # Scripted, Reality, Documentary, etc.
-
-  status:
-    exclude_ended: true              # Skip ended shows
-
-  premiered_after: "2020-01-01"      # Minimum premiere date (YYYY-MM-DD)
-
-  min_runtime: 20                    # Minimum runtime in minutes
+  - name: "Quality Documentaries"
+    types: ["Documentary"]
+    rating:
+      min: 7.5
+    premiered:
+      after: "2015-01-01"
 
 sonarr:
   url: "${SONARR_URL}"
@@ -149,7 +164,7 @@ server:
   enabled: true
   port: 8080
 
-dry_run: false                       # Test mode - don't actually add to Sonarr
+dry_run: false                       # Defaults to true - set false when ready to add shows
 ```
 
 ## Environment Variables
@@ -164,6 +179,7 @@ All configuration options can be set via environment variables using `SECTION_KE
 | `SONARR_API_KEY` | Sonarr API key |
 | `SONARR_ROOT_FOLDER` | Root folder path or ID |
 | `SONARR_QUALITY_PROFILE` | Quality profile name or ID |
+| `SERVER_API_KEY` | API key for protected HTTP endpoints |
 
 ### Optional Variables
 
@@ -176,13 +192,11 @@ All configuration options can be set via environment variables using `SECTION_KE
 | `SYNC_POLL_INTERVAL` | Sync frequency | `6h` |
 | `SYNC_RETRY_DELAY` | Retry pending_tvdb after | `1w` |
 | `SYNC_ABANDON_AFTER` | Abandon pending_tvdb after | `1y` |
-| `FILTERS_GENRES_EXCLUDE` | Comma-separated genres | (none) |
-| `FILTERS_LANGUAGES_INCLUDE` | Comma-separated languages | (none) |
-| `FILTERS_COUNTRIES_INCLUDE` | Comma-separated countries | (none) |
-| `FILTERS_TYPES_INCLUDE` | Comma-separated types | (none) |
-| `FILTERS_STATUS_EXCLUDE_ENDED` | Skip ended shows | `true` |
-| `FILTERS_PREMIERED_AFTER` | Minimum premiere date | (none) |
-| `FILTERS_MIN_RUNTIME` | Minimum runtime minutes | (none) |
+| `EXCLUDE_GENRES` | Comma-separated excluded genres | (none) |
+| `EXCLUDE_TYPES` | Comma-separated excluded types | (none) |
+| `EXCLUDE_LANGUAGES` | Comma-separated excluded languages | (none) |
+| `EXCLUDE_COUNTRIES` | Comma-separated excluded countries | (none) |
+| `EXCLUDE_NETWORKS` | Comma-separated excluded networks | (none) |
 | `SONARR_LANGUAGE_PROFILE` | Language profile (v3 only) | (none) |
 | `SONARR_MONITOR` | Monitor mode | `all` |
 | `SONARR_SEARCH_ON_ADD` | Search after adding | `true` |
@@ -192,7 +206,9 @@ All configuration options can be set via environment variables using `SECTION_KE
 | `LOGGING_FORMAT` | Log format (json/text) | `json` |
 | `SERVER_ENABLED` | Enable HTTP server | `true` |
 | `SERVER_PORT` | HTTP server port | `8080` |
-| `DRY_RUN` | Don't actually add to Sonarr | `false` |
+| `DRY_RUN` | Don't actually add to Sonarr | `true` |
+
+> **Note:** Selections cannot be configured via environment variables - use `config.yaml` for complex selection rules.
 
 ### Docker Secrets Support
 
@@ -214,35 +230,54 @@ docker-compose.yml:
 
 ## API Endpoints
 
-The built-in HTTP server exposes several endpoints for monitoring and control:
+The built-in HTTP server exposes several endpoints for monitoring and control.
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/health` | GET | Liveness probe (always returns 200 if running) |
-| `/ready` | GET | Readiness probe (checks Sonarr connectivity) |
-| `/metrics` | GET | Prometheus metrics |
-| `/trigger` | POST | Manually trigger a sync cycle |
-| `/state` | GET | Current sync state (last run times, page info) |
-| `/shows` | GET | Query shows from database |
-| `/refilter` | POST | Re-evaluate filters for all filtered shows |
+### Authentication
+
+Protected endpoints require an API key via:
+- Header: `X-API-Key: your-api-key`
+- Query param: `?api_key=your-api-key`
+
+| Endpoint | Method | Auth | Description |
+|----------|--------|------|-------------|
+| `/health` | GET | Public | Liveness probe (always returns 200 if running) |
+| `/ready` | GET | Public | Readiness probe (checks Sonarr connectivity) |
+| `/metrics` | GET | Public | Prometheus metrics |
+| `/config` | GET | 🔒 | Current running configuration |
+| `/trigger` | POST | 🔒 | Manually trigger a sync cycle |
+| `/state` | GET | 🔒 | Current sync state (last run times, page info) |
+| `/shows` | GET | 🔒 | Query shows from database |
+| `/refilter` | POST | 🔒 | Re-evaluate filters for all filtered shows |
 
 ### API Examples
 
 ```bash
+# Public endpoints (no auth required)
+curl http://localhost:8080/health
+curl http://localhost:8080/ready
+curl http://localhost:8080/metrics
+
+# Protected endpoints (require API key)
 # Trigger manual sync
-curl -X POST http://localhost:8080/trigger
+curl -X POST -H "X-API-Key: your-api-key" http://localhost:8080/trigger
 
 # Check current state
-curl http://localhost:8080/state
+curl -H "X-API-Key: your-api-key" http://localhost:8080/state
+
+# View running configuration
+curl -H "X-API-Key: your-api-key" http://localhost:8080/config
 
 # Query filtered shows
-curl "http://localhost:8080/shows?status=filtered&limit=10"
+curl -H "X-API-Key: your-api-key" "http://localhost:8080/shows?status=filtered&limit=10"
 
 # Query added shows
-curl "http://localhost:8080/shows?status=added"
+curl -H "X-API-Key: your-api-key" "http://localhost:8080/shows?status=added"
 
 # Re-evaluate filters after config change
-curl -X POST http://localhost:8080/refilter
+curl -X POST -H "X-API-Key: your-api-key" http://localhost:8080/refilter
+
+# Alternative: use query parameter
+curl "http://localhost:8080/state?api_key=your-api-key"
 ```
 
 ## Dry Run Mode
@@ -492,18 +527,33 @@ tvmaze-sync/
 
 ### Filter Processing
 
-Shows are processed through a filter chain:
+Shows are processed through a two-stage filter:
 
-1. **TVDB ID**: Must have TVDB ID (or marked pending_tvdb)
-2. **Genre**: Exclude unwanted genres
-3. **Language**: Include only specific languages
-4. **Country**: Include only specific countries
-5. **Type**: Include only specific types (Scripted, Reality, etc.)
-6. **Status**: Exclude ended shows (optional)
-7. **Premiere Date**: Must premiere after specified date
-8. **Runtime**: Must meet minimum runtime
+**Stage 1: Global Excludes**
+- Shows matching ANY global exclude criteria are rejected
+- Checked first before any selection evaluation
 
-First filter that rejects → show filtered with reason
+**Stage 2: Selections (OR logic)**
+- Show must match at least ONE selection to pass
+- Within each selection, ALL criteria must match (AND logic)
+- Empty selections list = all shows rejected
+
+**Selection Criteria:**
+- `languages`: Show language must be in list
+- `countries`: Show country must be in list
+- `genres`: Show must have at least one matching genre
+- `types`: Show type must be in list
+- `networks`: Show network must be in list
+- `status`: Show status must be in list
+- `premiered`: Show premiered date within range
+- `ended`: Show ended date within range
+- `rating`: TVMaze rating within range (0-10)
+- `runtime`: Episode runtime within range (minutes)
+
+**Processing Order:**
+1. Check TVDB ID (must exist or marked pending_tvdb)
+2. Check global excludes (reject if ANY match)
+3. Check selections (accept if ANY selection matches all its criteria)
 
 ### External APIs
 
