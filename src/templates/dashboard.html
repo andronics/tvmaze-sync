@@ -1,0 +1,182 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard - TVMaze-Sync{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="md:flex md:items-center md:justify-between">
+        <div class="min-w-0 flex-1">
+            <h1 class="text-2xl font-bold leading-7 text-gray-900 sm:truncate sm:text-3xl sm:tracking-tight">
+                Dashboard
+            </h1>
+        </div>
+        <div class="mt-4 flex md:ml-4 md:mt-0">
+            <button type="button"
+                    hx-post="/trigger"
+                    hx-swap="none"
+                    class="inline-flex items-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                    {% if sync_running %}disabled{% endif %}>
+                <svg class="{% if sync_running %}animate-spin {% endif %}-ml-0.5 mr-1.5 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
+                </svg>
+                {% if sync_running %}Syncing...{% else %}Trigger Sync{% endif %}
+            </button>
+        </div>
+    </div>
+
+    <!-- Health Status Cards -->
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <!-- Database Health -->
+        <div class="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6">
+            <dt class="truncate text-sm font-medium text-gray-500">Database</dt>
+            <dd class="mt-1 flex items-center">
+                {% if db_healthy %}
+                <span class="inline-flex items-center gap-x-1.5 rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-700">
+                    <svg class="h-1.5 w-1.5 fill-green-500" viewBox="0 0 6 6"><circle cx="3" cy="3" r="3" /></svg>
+                    Healthy
+                </span>
+                {% else %}
+                <span class="inline-flex items-center gap-x-1.5 rounded-full bg-red-100 px-2 py-1 text-xs font-medium text-red-700">
+                    <svg class="h-1.5 w-1.5 fill-red-500" viewBox="0 0 6 6"><circle cx="3" cy="3" r="3" /></svg>
+                    Unhealthy
+                </span>
+                {% endif %}
+            </dd>
+        </div>
+
+        <!-- Sonarr Health -->
+        <div class="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6">
+            <dt class="truncate text-sm font-medium text-gray-500">Sonarr</dt>
+            <dd class="mt-1 flex items-center">
+                {% if sonarr_healthy %}
+                <span class="inline-flex items-center gap-x-1.5 rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-700">
+                    <svg class="h-1.5 w-1.5 fill-green-500" viewBox="0 0 6 6"><circle cx="3" cy="3" r="3" /></svg>
+                    Connected
+                </span>
+                {% else %}
+                <span class="inline-flex items-center gap-x-1.5 rounded-full bg-red-100 px-2 py-1 text-xs font-medium text-red-700">
+                    <svg class="h-1.5 w-1.5 fill-red-500" viewBox="0 0 6 6"><circle cx="3" cy="3" r="3" /></svg>
+                    Disconnected
+                </span>
+                {% endif %}
+            </dd>
+        </div>
+
+        <!-- Last Sync -->
+        <div class="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6">
+            <dt class="truncate text-sm font-medium text-gray-500">Last Sync</dt>
+            <dd class="mt-1 text-sm text-gray-900">
+                {% if state.last_incremental_sync %}
+                    {{ state.last_incremental_sync|format_datetime }}
+                {% elif state.last_full_sync %}
+                    {{ state.last_full_sync|format_datetime }}
+                {% else %}
+                    Never
+                {% endif %}
+            </dd>
+        </div>
+
+        <!-- Next Sync -->
+        <div class="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6">
+            <dt class="truncate text-sm font-medium text-gray-500">Next Sync</dt>
+            <dd class="mt-1 text-sm text-gray-900">
+                {% if scheduler.next_run %}
+                    {{ scheduler.next_run|format_datetime }}
+                {% else %}
+                    Not scheduled
+                {% endif %}
+            </dd>
+        </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <!-- Total Shows -->
+        <div class="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6">
+            <dt class="truncate text-sm font-medium text-gray-500">Total Shows</dt>
+            <dd class="mt-1 text-3xl font-semibold tracking-tight text-gray-900">
+                {{ total_shows|format_number }}
+            </dd>
+        </div>
+
+        <!-- Added to Sonarr -->
+        <div class="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6">
+            <dt class="truncate text-sm font-medium text-gray-500">Added to Sonarr</dt>
+            <dd class="mt-1 text-3xl font-semibold tracking-tight text-green-600">
+                {{ status_counts.get('added', 0)|format_number }}
+            </dd>
+        </div>
+
+        <!-- Filtered -->
+        <div class="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6">
+            <dt class="truncate text-sm font-medium text-gray-500">Filtered Out</dt>
+            <dd class="mt-1 text-3xl font-semibold tracking-tight text-gray-600">
+                {{ status_counts.get('filtered', 0)|format_number }}
+            </dd>
+        </div>
+
+        <!-- Pending TVDB -->
+        <div class="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6">
+            <dt class="truncate text-sm font-medium text-gray-500">Pending TVDB</dt>
+            <dd class="mt-1 text-3xl font-semibold tracking-tight text-yellow-600">
+                {{ status_counts.get('pending_tvdb', 0)|format_number }}
+            </dd>
+        </div>
+    </div>
+
+    <!-- Status Distribution & Sync Status -->
+    <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <!-- Status Distribution -->
+        <div class="overflow-hidden rounded-lg bg-white shadow">
+            <div class="px-4 py-5 sm:p-6">
+                <h3 class="text-base font-semibold leading-6 text-gray-900">Status Distribution</h3>
+                <div class="mt-4 space-y-3">
+                    {% for status, count in status_counts.items() %}
+                    {% set color_map = {'added': '#22c55e', 'filtered': '#6b7280', 'pending_tvdb': '#eab308', 'pending': '#3b82f6', 'failed': '#ef4444', 'exists': '#a855f7', 'skipped': '#f97316', 'abandoned': '#9ca3af'} %}
+                    <div>
+                        <div class="flex justify-between text-sm">
+                            <span class="font-medium text-gray-700 capitalize">{{ status.replace('_', ' ') }}</span>
+                            <span class="text-gray-500">{{ count|format_number }}</span>
+                        </div>
+                        <div class="mt-1 w-full bg-gray-200 rounded-full h-2">
+                            {% set percentage = (count / total_shows * 100) if total_shows > 0 else 0 %}
+                            <div class="h-2 rounded-full" style="width: {{ percentage }}%; background-color: {{ color_map.get(status, '#6b7280') }};"></div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Filter Reasons -->
+        <div class="overflow-hidden rounded-lg bg-white shadow">
+            <div class="px-4 py-5 sm:p-6">
+                <h3 class="text-base font-semibold leading-6 text-gray-900">Filter Reasons</h3>
+                <div class="mt-4">
+                    {% if filter_reasons %}
+                    <div class="space-y-2">
+                        {% for reason, count in filter_reasons.items()|sort(attribute='1', reverse=true) %}
+                        <div class="flex justify-between text-sm">
+                            <span class="text-gray-700 capitalize">{{ reason }}</span>
+                            <span class="text-gray-500">{{ count|format_number }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-sm text-gray-500">No filter data available</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sync State Details -->
+    <div class="overflow-hidden rounded-lg bg-white shadow"
+         hx-get="{{ url_for('ui_partial_sync_status') }}"
+         hx-trigger="every 30s"
+         hx-swap="innerHTML">
+        {% include 'partials/sync_status.html' %}
+    </div>
+</div>
+{% endblock %}

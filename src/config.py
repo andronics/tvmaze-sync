@@ -130,7 +130,7 @@ class ServerConfig:
     """HTTP server configuration."""
 
     enabled: bool = True
-    port: int = 8080
+    port: int = 5000
     api_key: Optional[str] = None
 
 
@@ -460,7 +460,7 @@ def load_config(path: Path | None = None) -> Config:
         server_data = config_dict.get("server", {})
         server = ServerConfig(
             enabled=server_data.get("enabled", True),
-            port=server_data.get("port", 8080),
+            port=server_data.get("port", 5000),
             api_key=server_data.get("api_key"),
         )
 

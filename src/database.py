@@ -505,3 +505,129 @@ class Database:
         self.conn.commit()
 
         return row["retry_count"] if row else 0
+
+    # ============ Web UI Search Methods ============
+
+    def search_shows(
+        self,
+        status: Optional[str] = None,
+        search: Optional[str] = None,
+        language: Optional[str] = None,
+        country: Optional[str] = None,
+        show_type: Optional[str] = None,
+        genre: Optional[str] = None,
+        limit: int = 50,
+        offset: int = 0
+    ) -> list[Show]:
+        """Search shows with multiple filters for web UI."""
+        conditions = []
+        params = []
+
+        if status:
+            conditions.append("processing_status = ?")
+            params.append(status)
+
+        if search:
+            conditions.append("title LIKE ?")
+            params.append(f"%{search}%")
+
+        if language:
+            conditions.append("language = ?")
+            params.append(language)
+
+        if country:
+            conditions.append("country = ?")
+            params.append(country)
+
+        if show_type:
+            conditions.append("type = ?")
+            params.append(show_type)
+
+        if genre:
+            conditions.append("genres LIKE ?")
+            params.append(f'%"{genre}"%')
+
+        where_clause = " AND ".join(conditions) if conditions else "1=1"
+
+        query = f"""
+            SELECT * FROM shows
+            WHERE {where_clause}
+            ORDER BY title
+            LIMIT ? OFFSET ?
+        """
+        params.extend([limit, offset])
+
+        cursor = self.conn.execute(query, params)
+        return [Show.from_db_row(row) for row in cursor.fetchall()]
+
+    def count_shows(
+        self,
+        status: Optional[str] = None,
+        search: Optional[str] = None,
+        language: Optional[str] = None,
+        country: Optional[str] = None,
+        show_type: Optional[str] = None,
+        genre: Optional[str] = None
+    ) -> int:
+        """Count shows matching filters for pagination."""
+        conditions = []
+        params = []
+
+        if status:
+            conditions.append("processing_status = ?")
+            params.append(status)
+
+        if search:
+            conditions.append("title LIKE ?")
+            params.append(f"%{search}%")
+
+        if language:
+            conditions.append("language = ?")
+            params.append(language)
+
+        if country:
+            conditions.append("country = ?")
+            params.append(country)
+
+        if show_type:
+            conditions.append("type = ?")
+            params.append(show_type)
+
+        if genre:
+            conditions.append("genres LIKE ?")
+            params.append(f'%"{genre}"%')
+
+        where_clause = " AND ".join(conditions) if conditions else "1=1"
+        query = f"SELECT COUNT(*) as count FROM shows WHERE {where_clause}"
+
+        cursor = self.conn.execute(query, params)
+        row = cursor.fetchone()
+        return row["count"] if row else 0
+
+    def get_distinct_values(self, column: str) -> list[str]:
+        """Get distinct non-null values for a column (for filter dropdowns)."""
+        # Whitelist allowed columns to prevent SQL injection
+        allowed_columns = {'language', 'country', 'type', 'status', 'network', 'processing_status'}
+        if column not in allowed_columns:
+            return []
+
+        cursor = self.conn.execute(
+            f"SELECT DISTINCT {column} FROM shows WHERE {column} IS NOT NULL AND {column} != '' ORDER BY {column}"
+        )
+        return [row[0] for row in cursor.fetchall()]
+
+    def get_all_genres(self) -> list[str]:
+        """Get all unique genres across all shows."""
+        import json
+        cursor = self.conn.execute(
+            "SELECT DISTINCT genres FROM shows WHERE genres IS NOT NULL AND genres != '[]'"
+        )
+        all_genres = set()
+        for row in cursor.fetchall():
+            if row[0]:
+                try:
+                    genres = json.loads(row[0])
+                    all_genres.update(genres)
+                except json.JSONDecodeError:
+                    pass
+        return sorted(all_genres)

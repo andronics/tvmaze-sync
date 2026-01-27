@@ -131,9 +131,6 @@ class Scheduler:
         """Main scheduler loop."""
         self._safe_log("info", "Scheduler loop started")
 
-        with self._lock:
-            self._running = True
-
         while not self._stop_event.is_set():
             # Calculate next run time
             with self._lock:
@@ -154,12 +151,14 @@ class Scheduler:
                 self._safe_log("info", "Running sync cycle (scheduled)")
 
             # Run sync
+            with self._lock:
+                self._running = True
             try:
                 self.sync_func()
             except Exception as e:
                 self._safe_log("exception", "Sync cycle failed", exc_info=True)
-
-        with self._lock:
-            self._running = False
+            finally:
+                with self._lock:
+                    self._running = False
 
         self._safe_log("info", "Scheduler loop exited")

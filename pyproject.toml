@@ -58,7 +58,13 @@ Issues = "https://github.com/andronics/tvmaze-sync/issues"
 packages = ["src", "src.clients"]
 
 [tool.setuptools.package-data]
-src = ["py.typed"]
+src = [
+    "py.typed",
+    "templates/*.html",
+    "templates/**/*.html",
+    "static/css/*.css",
+    "static/js/*.js",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

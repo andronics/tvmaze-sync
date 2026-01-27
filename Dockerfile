@@ -26,11 +26,11 @@ RUN useradd -m -u 1000 tvmaze && \
 VOLUME ["/data", "/config"]
 
 # Expose HTTP server port
-EXPOSE 8080
+EXPOSE 5000
 
 # Health check
 HEALTHCHECK --interval=60s --timeout=10s --retries=3 \
-    CMD curl -f http://localhost:8080/health || exit 1
+    CMD curl -f http://localhost:5000/health || exit 1
 
 # Switch to non-root user
 USER tvmaze
