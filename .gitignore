@@ -61,3 +61,9 @@ secrets/
 # OS
 .DS_Store
 Thumbs.db
+
+# graphify knowledge graph (regenerable, local dev tool)
+graphify-out/
+
+# Claude Code local settings (personal, not shared)
+.claude/settings.local.json

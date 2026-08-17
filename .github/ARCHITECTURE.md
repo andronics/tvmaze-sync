@@ -6,55 +6,220 @@
 
 TVMaze-Sync is a Docker-native service that monitors the TVMaze database for TV shows matching configurable criteria and automatically adds them to Sonarr. It maintains a local SQLite cache of show metadata, enabling efficient incremental syncs and instant filter re-evaluation without re-fetching data.
 
+The service includes a full web UI for monitoring, browsing shows, and managing configuration.
+
 ## Core Principles
 
 1. **Fail Fast** - Validate all configuration and external dependencies at startup
 2. **Idempotent Operations** - Safe to restart at any point without data corruption
 3. **Efficient Syncing** - Initial full sync, then incremental updates via TVMaze's updates endpoint
 4. **Local Intelligence** - Cache enough metadata to re-evaluate filters without API calls
-5. **Observable** - Prometheus metrics, health endpoints, structured logging
+5. **Observable** - Prometheus metrics, health endpoints, structured logging, web dashboard
 
 ## System Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                            TVMaze-Sync Container                         │
-│                                                                          │
-│  ┌──────────────┐     ┌──────────────┐     ┌──────────────────────────┐ │
-│  │   Scheduler  │────▶│  Sync Engine │────▶│  Processor (Filtering)   │ │
-│  └──────────────┘     └──────────────┘     └──────────────────────────┘ │
-│         │                    │                          │                │
-│         │                    ▼                          ▼                │
-│         │            ┌──────────────┐          ┌──────────────┐         │
-│         │            │ TVMaze Client│          │ Sonarr Client│         │
-│         │            └──────────────┘          └──────────────┘         │
-│         │                    │                          │                │
-│         │                    ▼                          │                │
-│         │            ┌──────────────────────────────────┴───┐           │
-│         │            │         SQLite (shows.db)            │           │
-│         │            │   - Show metadata cache              │           │
-│         │            │   - Processing status                │           │
-│         │            │   - Filter reasons                   │           │
-│         │            └──────────────────────────────────────┘           │
-│         │                                                                │
-│         ▼                                                                │
-│  ┌──────────────────────────────────────────────────────────────────┐   │
-│  │                    Flask Server (:8080)                           │   │
-│  │  GET /health    GET /ready    GET /metrics    POST /trigger       │   │
-│  │  GET /state     GET /shows    POST /refilter                      │   │
-│  └──────────────────────────────────────────────────────────────────┘   │
-│                                                                          │
-│  ┌─────────────────┐                                                    │
-│  │  state.json     │  Operational state (last sync, progress, etc.)     │
-│  │  state.json.bak │  Backup after successful cycles                    │
-│  └─────────────────┘                                                    │
-└─────────────────────────────────────────────────────────────────────────┘
-          │                              │
-          ▼                              ▼
-   ┌─────────────┐                ┌─────────────┐
-   │  TVMaze API │                │  Sonarr API │
-   │  (external) │                │  (internal) │
-   └─────────────┘                └─────────────┘
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                            TVMaze-Sync Container                                 │
+│                                                                                  │
+│  ┌────────────────────────────────────────────────────────────────────────────┐ │
+│  │                       Flask HTTP Server (:5000)                            │ │
+│  │                                                                            │ │
+│  │  ┌─────────────────────────────────────────────────────────────────────┐  │ │
+│  │  │                         Web UI (Jinja2 + HTMX)                      │  │ │
+│  │  │                                                                     │  │ │
+│  │  │   /              Dashboard    - Status, stats, sync control         │  │ │
+│  │  │   /ui/shows      Shows        - Browse, search, filter 85k shows    │  │ │
+│  │  │   /ui/config     Config       - View running configuration          │  │ │
+│  │  │   /ui/api        API Docs     - Endpoint reference                  │  │ │
+│  │  │   /ui/about      About        - Setup guide, documentation          │  │ │
+│  │  │   /login         Login        - API key authentication              │  │ │
+│  │  │                                                                     │  │ │
+│  │  │   /ui/partials/* HTMX         - Dynamic partial updates             │  │ │
+│  │  └─────────────────────────────────────────────────────────────────────┘  │ │
+│  │                                                                            │ │
+│  │  ┌──────────────────────┐  ┌──────────────────────┐  ┌─────────────────┐  │ │
+│  │  │   Public Endpoints   │  │  Protected API       │  │  Static Assets  │  │ │
+│  │  │                      │  │                      │  │                 │  │ │
+│  │  │   GET /health        │  │  POST /trigger       │  │  /static/css/   │  │ │
+│  │  │   GET /ready         │  │  GET  /state         │  │  /static/js/    │  │ │
+│  │  │   GET /metrics       │  │  GET  /shows         │  │                 │  │ │
+│  │  │                      │  │  POST /refilter      │  │  Tailwind CSS   │  │ │
+│  │  │                      │  │  GET  /config        │  │  (CDN)          │  │ │
+│  │  └──────────────────────┘  └──────────────────────┘  └─────────────────┘  │ │
+│  └────────────────────────────────────────────────────────────────────────────┘ │
+│                                        │                                         │
+│                                        │ reads/writes                            │
+│                                        ▼                                         │
+│  ┌────────────────────────────────────────────────────────────────────────────┐ │
+│  │                              Main Application                              │ │
+│  │                                                                            │ │
+│  │  ┌──────────────┐    triggers    ┌──────────────────────────────────────┐ │ │
+│  │  │  Scheduler   │ ─────────────► │            Sync Engine               │ │ │
+│  │  │              │                │                                      │ │ │
+│  │  │ - interval   │                │  1. Fetch shows from TVMaze          │ │ │
+│  │  │ - is_running │                │  2. Store in database                │ │ │
+│  │  │ - next_run   │                │  3. Apply filters (Processor)        │ │ │
+│  │  │              │                │  4. Add matches to Sonarr            │ │ │
+│  │  └──────────────┘                │  5. Update state                     │ │ │
+│  │                                  └──────────────────────────────────────┘ │ │
+│  │                                        │                                  │ │
+│  │                    ┌───────────────────┼───────────────────┐              │ │
+│  │                    ▼                   ▼                   ▼              │ │
+│  │  ┌──────────────────────┐ ┌──────────────────┐ ┌──────────────────────┐  │ │
+│  │  │    TVMaze Client     │ │    Processor     │ │    Sonarr Client     │  │ │
+│  │  │                      │ │                  │ │                      │  │ │
+│  │  │ - fetch all shows    │ │ - global exclude │ │ - validate config    │  │ │
+│  │  │ - fetch updates      │ │ - selections     │ │ - add series         │  │ │
+│  │  │ - rate limiting      │ │ - filter logic   │ │ - check exists       │  │ │
+│  │  └──────────────────────┘ └──────────────────┘ └──────────────────────┘  │ │
+│  └────────────────────────────────────────────────────────────────────────────┘ │
+│                                        │                                         │
+│                                        ▼                                         │
+│  ┌─────────────────────────────────────────────────────────────────────────────┐│
+│  │                              Storage Layer                                   ││
+│  │                                                                              ││
+│  │   ┌─────────────────────────────┐    ┌─────────────────────────────┐        ││
+│  │   │     SQLite Database         │    │       JSON State            │        ││
+│  │   │     /data/shows.db          │    │     /data/state.json        │        ││
+│  │   │                             │    │                             │        ││
+│  │   │  - ~85k shows cached        │    │  - last_full_sync           │        ││
+│  │   │  - processing_status        │    │  - last_incremental_sync    │        ││
+│  │   │  - filter_reason            │    │  - highest_tvmaze_id        │        ││
+│  │   │  - retry tracking           │    │  - last_tvmaze_page         │        ││
+│  │   │  - search indexes           │    │  - last_filter_hash         │        ││
+│  │   └─────────────────────────────┘    └─────────────────────────────┘        ││
+│  └─────────────────────────────────────────────────────────────────────────────┘│
+│                                                                                  │
+│   Volumes: /data (persistent), /config (config.yaml)                            │
+└─────────────────────────────────────────────────────────────────────────────────┘
+         │                                                        │
+         │ HTTPS                                                  │ HTTP
+         ▼                                                        ▼
+┌─────────────────────┐                              ┌─────────────────────┐
+│    TVMaze API       │                              │     Sonarr API      │
+│                     │                              │                     │
+│ api.tvmaze.com      │                              │ http://sonarr:8989  │
+│                     │                              │                     │
+│ - GET /shows        │                              │ - GET /series       │
+│ - GET /updates      │                              │ - POST /series      │
+│ - Rate: 20 req/10s  │                              │ - GET /status       │
+└─────────────────────┘                              └─────────────────────┘
+```
+
+## Web UI Architecture
+
+### Technology Stack
+
+| Component | Technology | Purpose |
+|-----------|------------|---------|
+| Templates | Jinja2 | Server-side HTML rendering |
+| Styling | Tailwind CSS (CDN) | Utility-first CSS, no build step |
+| Interactivity | HTMX | Dynamic updates without JavaScript frameworks |
+| Icons | Heroicons (inline SVG) | Consistent icon set |
+
+### Template Structure
+
+```
+src/templates/
+├── base.html                   # Base layout (nav, footer, Tailwind, HTMX)
+├── login.html                  # API key authentication
+├── dashboard.html              # System status and statistics
+├── shows.html                  # Shows browser with search/filter
+├── config.html                 # Configuration viewer
+├── api.html                    # API documentation
+├── about.html                  # Setup guide and docs
+├── components/
+│   ├── nav.html                # Navigation bar with sync status
+│   └── footer.html             # Footer with links
+├── partials/                   # HTMX partial templates (no base layout)
+│   ├── nav_status.html         # Sync status indicator (polled every 10s)
+│   ├── sync_status.html        # Dashboard sync panel (polled every 30s)
+│   ├── shows_table.html        # Shows table with pagination
+│   └── show_detail.html        # Show detail modal content
+└── errors/
+    ├── 404.html                # Not found page
+    └── 500.html                # Server error page
+```
+
+### Static Assets
+
+```
+src/static/
+├── css/
+│   └── custom.css              # HTMX transitions, toast animations, status colors
+└── js/
+    └── app.js                  # Toast notifications, HTMX event handlers
+```
+
+### Authentication Flow
+
+```
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│   Browser   │────►│  /login     │────►│  Dashboard  │
+│             │     │             │     │             │
+│  No cookie  │     │  POST key   │     │  Cookie set │
+└─────────────┘     └─────────────┘     └─────────────┘
+                          │
+                          ▼
+                    ┌─────────────┐
+                    │  Validate   │
+                    │  API Key    │
+                    │             │
+                    │  Match? ────┼──► Set cookie (7 days, httponly)
+                    │  No match? ─┼──► Show error
+                    └─────────────┘
+
+Authentication Methods (checked in order):
+1. X-API-Key header     (API clients)
+2. api_key query param  (API clients)
+3. api_key cookie       (Web UI)
+```
+
+### HTMX Patterns
+
+**Live Status Polling:**
+```html
+<!-- Nav sync indicator - polls every 10 seconds -->
+<div hx-get="/ui/partials/nav-status"
+     hx-trigger="every 10s"
+     hx-swap="innerHTML">
+    {% include 'partials/nav_status.html' %}
+</div>
+```
+
+**Search with Debounce:**
+```html
+<!-- Search input with 500ms debounce -->
+<input type="text" name="search"
+       hx-get="/ui/partials/shows"
+       hx-trigger="keyup changed delay:500ms"
+       hx-target="#shows-table"
+       hx-include="[name='status']">
+```
+
+**Filter Updates:**
+```html
+<!-- Status dropdown triggers instant table update -->
+<select name="status"
+        hx-get="/ui/partials/shows"
+        hx-trigger="change"
+        hx-target="#shows-table"
+        hx-include="[name='search']">
+```
+
+**Modal Loading:**
+```html
+<!-- Click row to load show detail into modal -->
+<tr onclick="showModal({{ show.tvmaze_id }})">
+
+<script>
+function showModal(tvmazeId) {
+    htmx.ajax('GET', '/ui/partials/show/' + tvmazeId,
+              {target: '#modal-content', swap: 'innerHTML'});
+    document.getElementById('show-modal').classList.remove('hidden');
+}
+</script>
 ```
 
 ## Data Flow
@@ -98,6 +263,52 @@ TVMaze-Sync is a Docker-native service that monitors the TVMaze database for TV 
    d. Update stored filter hash
 ```
 
+### Filter Pipeline
+
+```
+  Show from TVMaze
+         │
+         ▼
+  ┌─────────────────────────────────────────┐
+  │         Stage 1: Global Excludes        │
+  │                 (OR logic)              │
+  │                                         │
+  │  genres[] ─┐                            │
+  │  types[]   ├─► ANY match = FILTERED     │
+  │  languages[]                            │
+  │  countries[]                            │
+  │  networks[]─┘                           │
+  └─────────────────────────────────────────┘
+         │ pass
+         ▼
+  ┌─────────────────────────────────────────┐
+  │        Stage 2: Selections              │
+  │     (AND within, OR across)             │
+  │                                         │
+  │  Selection 1: ──┐                       │
+  │    languages[]  │                       │
+  │    countries[]  ├─► ALL must match      │
+  │    genres[]     │                       │
+  │    premiered{}  │                       │
+  │    rating{}  ───┘                       │
+  │         OR                              │
+  │  Selection 2: ──┐                       │
+  │    ...       ───┘                       │
+  │                                         │
+  │  ANY selection match = ADD              │
+  │  NO selection match  = FILTERED         │
+  └─────────────────────────────────────────┘
+         │
+         ▼
+  ┌─────────────────┐
+  │ Check TVDB ID   │
+  │                 │
+  │ Has ID? ───────►│ ADD to Sonarr
+  │                 │
+  │ No ID? ────────►│ PENDING_TVDB (retry later)
+  └─────────────────┘
+```
+
 ## Storage Architecture
 
 ### SQLite Database (shows.db)
@@ -127,7 +338,7 @@ CREATE TABLE shows (
 
     -- Processing state
     processing_status TEXT NOT NULL DEFAULT 'pending',
-    filter_reason TEXT,     -- Why it was filtered (for metrics)
+    filter_reason TEXT,     -- Why it was filtered (for metrics/UI)
     sonarr_series_id INTEGER,
     added_to_sonarr_at DATETIME,
 
@@ -136,6 +347,7 @@ CREATE TABLE shows (
     tvmaze_updated_at INTEGER,  -- Unix timestamp from TVMaze
     retry_after DATETIME,
     retry_count INTEGER DEFAULT 0,
+    pending_since DATETIME,
     error_message TEXT,
 
     -- Record timestamps
@@ -151,6 +363,7 @@ CREATE INDEX idx_country ON shows(country);
 CREATE INDEX idx_type ON shows(type);
 CREATE INDEX idx_premiered ON shows(premiered);
 CREATE INDEX idx_retry_after ON shows(retry_after);
+CREATE INDEX idx_pending_since ON shows(pending_since);
 CREATE INDEX idx_tvmaze_updated_at ON shows(tvmaze_updated_at);
 ```
 
@@ -164,6 +377,30 @@ CREATE INDEX idx_tvmaze_updated_at ON shows(tvmaze_updated_at);
 | `exists` | Already existed in Sonarr |
 | `failed` | Sonarr rejected, permanent failure |
 | `skipped` | Manually excluded |
+| `abandoned` | Exceeded retry timeout |
+
+### Web UI Database Methods
+
+Additional methods for the shows browser:
+
+```python
+def search_shows(
+    status: str = None,
+    search: str = None,      # Title LIKE search
+    language: str = None,
+    country: str = None,
+    show_type: str = None,
+    genre: str = None,
+    limit: int = 50,
+    offset: int = 0
+) -> list[Show]
+
+def count_shows(...) -> int  # Same filters, returns count
+
+def get_distinct_values(column: str) -> list[str]  # For filter dropdowns
+
+def get_all_genres() -> list[str]  # Extract unique genres from JSON
+```
 
 ### JSON State (state.json)
 
@@ -184,11 +421,6 @@ Lightweight operational state, separate from show data.
 1. Write to `state.json.tmp`
 2. Atomic rename to `state.json`
 3. Backup to `state.json.bak` only after successful full cycle
-
-**Corruption Recovery:**
-1. On load: validate JSON structure
-2. If corrupt: restore from `state.json.bak`
-3. If backup also corrupt: start fresh, log error
 
 ## Configuration
 
@@ -250,7 +482,8 @@ logging:
 
 server:
   enabled: true
-  port: 8080
+  port: 5000
+  api_key: "${SERVER_API_KEY}"           # Required for web UI and API
 
 dry_run: false  # Defaults to true - set false when ready
 ```
@@ -269,121 +502,28 @@ All config values support environment variable substitution:
 3. Raise ConfigurationError if neither exists
 ```
 
-### Full Environment Override
-
-Many config options can be set via environment variable:
-
-```bash
-TVMAZE_API_KEY=xxx
-TVMAZE_RATE_LIMIT=20
-TVMAZE_UPDATE_WINDOW=week
-SYNC_POLL_INTERVAL=6h
-SYNC_RETRY_DELAY=1w
-SYNC_ABANDON_AFTER=1y
-EXCLUDE_GENRES=Reality,Talk Show,Game Show
-EXCLUDE_TYPES=News
-EXCLUDE_NETWORKS=Home Shopping Network
-SONARR_URL=http://sonarr:8989
-SONARR_API_KEY=xxx
-SONARR_ROOT_FOLDER=/tv
-SONARR_QUALITY_PROFILE=HD-1080p
-STORAGE_PATH=/data
-LOGGING_LEVEL=INFO
-SERVER_PORT=8080
-DRY_RUN=false
-```
-
-**Note:** Selections cannot be configured via environment variables due to their
-nested structure. Use `config.yaml` for complex selection rules.
-
-## External Integrations
-
-### TVMaze API
-
-**Base URL:** `https://api.tvmaze.com`
-
-**Endpoints Used:**
-| Endpoint | Purpose | Rate Limit |
-|----------|---------|------------|
-| `GET /shows?page=N` | Paginated show index (250/page) | Cached 24h |
-| `GET /shows/:id` | Single show details | Standard |
-| `GET /updates/shows?since=week` | Updated show IDs | Cached 60min |
-
-**Rate Limiting:**
-- 20 requests per 10 seconds per IP
-- Implement exponential backoff on HTTP 429
-- Respect cache headers
-
-**Response Mapping:**
-```python
-TVMaze Response → SQLite Row
-─────────────────────────────
-id              → tvmaze_id
-externals.thetvdb → tvdb_id
-externals.imdb  → imdb_id
-name            → title
-language        → language
-network.country.code → country (or webChannel.country.code)
-type            → type
-status          → status
-premiered       → premiered
-ended           → ended
-network.name    → network
-webChannel.name → web_channel
-genres          → genres (JSON string)
-runtime         → runtime
-updated         → tvmaze_updated_at
-```
-
-### Sonarr API
-
-**Library:** pyarr (https://github.com/totaldebug/pyarr)
-
-**Startup Validation:**
-1. `GET /api/v3/system/status` - Verify connectivity, detect version
-2. `GET /api/v3/rootfolder` - Validate configured root folder exists
-3. `GET /api/v3/qualityprofile` - Validate quality profile exists
-4. `GET /api/v3/languageprofile` - Validate language profile (v3 only)
-5. `GET /api/v3/tag` - Validate configured tags exist
-
-**Adding Shows:**
-```python
-# 1. Lookup by TVDB ID
-results = sonarr.lookup_series(term=f"tvdb:{tvdb_id}")
-
-# 2. Add to library
-sonarr.add_series(
-    series=results[0],
-    quality_profile_id=validated_profile_id,
-    language_profile_id=validated_language_id,  # v3 only
-    root_dir=validated_root_folder,
-    monitored=True,
-    search_for_missing_episodes=config.search_on_add,
-    tags=validated_tag_ids
-)
-```
-
-**Error Handling:**
-| HTTP Code | Meaning | Action |
-|-----------|---------|--------|
-| 201 | Created | Mark as `added` |
-| 409 | Already exists | Mark as `exists` |
-| 400 | Bad request | Mark as `failed`, log error |
-| 404 | TVDB ID not found | Mark as `pending_tvdb` if no TVDB, else `failed` |
-
 ## HTTP Server
 
-### Endpoints
+### Routes Overview
 
-| Endpoint | Method | Purpose |
-|----------|--------|---------|
-| `/health` | GET | Liveness probe - always returns 200 if server running |
-| `/ready` | GET | Readiness probe - checks DB and Sonarr connectivity |
-| `/metrics` | GET | Prometheus metrics endpoint |
-| `/trigger` | POST | Manually trigger sync cycle |
-| `/state` | GET | Current operational state summary |
-| `/shows` | GET | Query shows (supports `?status=` filter) |
-| `/refilter` | POST | Force re-evaluation of all filtered shows |
+| Route | Method | Auth | Purpose |
+|-------|--------|------|---------|
+| `/health` | GET | No | Liveness probe |
+| `/ready` | GET | No | Readiness probe (DB + Sonarr) |
+| `/metrics` | GET | No | Prometheus metrics |
+| `/login` | GET/POST | No | Web UI authentication |
+| `/` | GET | Yes | Dashboard |
+| `/ui/shows` | GET | Yes | Shows browser |
+| `/ui/config` | GET | Yes | Configuration viewer |
+| `/ui/api` | GET | Yes | API documentation |
+| `/ui/about` | GET | Yes | About/setup guide |
+| `/ui/partials/*` | GET | Yes | HTMX partial templates |
+| `/trigger` | POST | Yes | Manually trigger sync |
+| `/state` | GET | Yes | Operational state JSON |
+| `/shows` | GET | Yes | Query shows JSON |
+| `/refilter` | POST | Yes | Re-evaluate filtered shows |
+| `/config` | GET | Yes | Full config JSON |
+| `/logout` | GET | Yes | Clear auth cookie |
 
 ### Prometheus Metrics
 
@@ -407,8 +547,42 @@ sonarr.add_series(
 - `tvmaze_api_requests_total{service,endpoint,status}` - API call counter
 - `tvmaze_sonarr_healthy` - Sonarr reachable (0/1)
 
-**Retry Queue:**
-- `tvmaze_shows_pending_retry{reason}` - Shows awaiting retry
+## External Integrations
+
+### TVMaze API
+
+**Base URL:** `https://api.tvmaze.com`
+
+**Endpoints Used:**
+| Endpoint | Purpose | Rate Limit |
+|----------|---------|------------|
+| `GET /shows?page=N` | Paginated show index (250/page) | Cached 24h |
+| `GET /shows/:id` | Single show details | Standard |
+| `GET /updates/shows?since=week` | Updated show IDs | Cached 60min |
+
+**Rate Limiting:**
+- 20 requests per 10 seconds per IP
+- Implement exponential backoff on HTTP 429
+- Respect cache headers
+
+### Sonarr API
+
+**Library:** pyarr (https://github.com/totaldebug/pyarr)
+
+**Startup Validation:**
+1. `GET /api/v3/system/status` - Verify connectivity, detect version
+2. `GET /api/v3/rootfolder` - Validate configured root folder exists
+3. `GET /api/v3/qualityprofile` - Validate quality profile exists
+4. `GET /api/v3/languageprofile` - Validate language profile (v3 only)
+5. `GET /api/v3/tag` - Validate configured tags exist
+
+**Error Handling:**
+| HTTP Code | Meaning | Action |
+|-----------|---------|--------|
+| 201 | Created | Mark as `added` |
+| 409 | Already exists | Mark as `exists` |
+| 400 | Bad request | Mark as `failed`, log error |
+| 404 | TVDB ID not found | Mark as `pending_tvdb` if no TVDB, else `failed` |
 
 ## Startup Sequence
 
@@ -432,7 +606,10 @@ sonarr.add_series(
    └── Re-evaluate filtered shows if config changed
 
 5. Start Flask server
-   └── Health/metrics/API endpoints available
+   ├── Register templates and static files
+   ├── Register template filters (format_datetime, status_color, etc.)
+   ├── Register context processors (nav_items, api_key)
+   └── Health/metrics/API/Web UI endpoints available
 
 6. Start scheduler
    └── Begin sync cycles
@@ -459,6 +636,108 @@ sonarr.add_series(
 5. Stop Flask server
 
 6. Exit cleanly
+```
+
+## Docker Deployment
+
+### Dockerfile
+
+```dockerfile
+FROM python:3.12-slim
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY pyproject.toml README.md ./
+COPY src/ ./src/
+
+RUN pip install --no-cache-dir .
+
+RUN useradd -m -u 1000 tvmaze && \
+    mkdir -p /data /config && \
+    chown -R tvmaze:tvmaze /app /data /config
+
+VOLUME ["/data", "/config"]
+
+EXPOSE 5000
+
+HEALTHCHECK --interval=60s --timeout=10s --retries=3 \
+    CMD curl -f http://localhost:5000/health || exit 1
+
+USER tvmaze
+
+ENV CONFIG_PATH=/config/config.yaml \
+    STORAGE_PATH=/data \
+    PYTHONUNBUFFERED=1
+
+ENTRYPOINT ["tvmaze-sync"]
+```
+
+### Docker Compose
+
+```yaml
+version: '3.8'
+
+services:
+  tvmaze-sync:
+    image: tvmaze-sync:latest
+    container_name: tvmaze-sync
+    environment:
+      - SONARR_URL=http://sonarr:8989
+      - SONARR_API_KEY_FILE=/run/secrets/sonarr_api_key
+      - TVMAZE_API_KEY_FILE=/run/secrets/tvmaze_api_key
+      - SERVER_API_KEY_FILE=/run/secrets/server_api_key
+    volumes:
+      - ./config.yaml:/config/config.yaml:ro
+      - tvmaze-data:/data
+    secrets:
+      - sonarr_api_key
+      - tvmaze_api_key
+      - server_api_key
+    ports:
+      - "5000:5000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+secrets:
+  sonarr_api_key:
+    file: ./secrets/sonarr_api_key.txt
+  tvmaze_api_key:
+    file: ./secrets/tvmaze_api_key.txt
+  server_api_key:
+    file: ./secrets/server_api_key.txt
+
+volumes:
+  tvmaze-data:
+```
+
+## Module Structure
+
+```
+src/
+├── __init__.py
+├── main.py              # Entry point, orchestration, sync logic
+├── config.py            # Configuration loading and validation
+├── models.py            # Data classes (Show, ProcessingResult, etc.)
+├── database.py          # SQLite operations, search methods
+├── state.py             # JSON state management
+├── processor.py         # Show filtering logic
+├── scheduler.py         # Sync cycle scheduling
+├── server.py            # Flask app, routes, templates
+├── metrics.py           # Prometheus metrics
+├── clients/
+│   ├── __init__.py
+│   ├── tvmaze.py        # TVMaze API client
+│   └── sonarr.py        # Sonarr API client
+├── templates/           # Jinja2 templates (see Web UI Architecture)
+└── static/              # CSS and JS assets
 ```
 
 ## Error Handling
@@ -494,68 +773,6 @@ Progress checkpointed after each page → resume from last page
 Show-level failure → log, continue with next show
 ```
 
-## Docker Deployment
-
-### Dockerfile
-
-```dockerfile
-FROM python:3.12-slim
-
-WORKDIR /app
-
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-COPY src/ ./src/
-
-VOLUME ["/data", "/config"]
-
-EXPOSE 8080
-
-HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
-    CMD curl -f http://localhost:8080/health || exit 1
-
-ENTRYPOINT ["python", "-m", "src.main"]
-```
-
-### Docker Compose
-
-```yaml
-services:
-  tvmaze-sync:
-    image: tvmaze-sync:latest
-    container_name: tvmaze-sync
-    environment:
-      - SONARR_URL=http://sonarr:8989
-      - SONARR_API_KEY_FILE=/run/secrets/sonarr_api_key
-      - TVMAZE_API_KEY_FILE=/run/secrets/tvmaze_api_key
-    volumes:
-      - ./config.yaml:/config/config.yaml:ro
-      - tvmaze-data:/data
-    secrets:
-      - sonarr_api_key
-      - tvmaze_api_key
-    ports:
-      - "8080:8080"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    restart: unless-stopped
-    depends_on:
-      - sonarr
-
-secrets:
-  sonarr_api_key:
-    file: ./secrets/sonarr_api_key.txt
-  tvmaze_api_key:
-    file: ./secrets/tvmaze_api_key.txt
-
-volumes:
-  tvmaze-data:
-```
-
 ## Future Considerations
 
 ### Rule Engine (v2)
@@ -583,3 +800,11 @@ Potential rule engine features:
 - **Radarr** - Movie support using same pattern
 - **Notifications** - Webhook/Discord/Gotify on show additions
 - **Manual Review Queue** - Web UI for approving borderline shows
+
+### Event-Driven Architecture (v3)
+
+For larger scale deployments:
+- Message queue (Redis) for decoupled processing
+- Separate worker processes for discovery, filtering, target integration
+- Plugin system for adding new targets (Plex, Jellyfin, webhooks)
+- Async processing with httpx for improved throughput
