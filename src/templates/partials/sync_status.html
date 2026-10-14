@@ -1,11 +1,19 @@
 <div class="px-4 py-5 sm:p-6">
-    <h3 class="text-base font-semibold leading-6 text-gray-900">Sync State</h3>
+    <h3 class="text-base font-semibold leading-6 text-gray-900 dark:text-gray-100">Sync State</h3>
     <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div>
-            <dt class="text-sm font-medium text-gray-500">Status</dt>
+            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Status</dt>
             <dd class="mt-1">
-                {% if sync_running %}
-                <span class="inline-flex items-center gap-x-1.5 rounded-full bg-yellow-100 px-2.5 py-1 text-sm font-medium text-yellow-800">
+                {% if reprocessing_filters %}
+                <span class="inline-flex items-center gap-x-1.5 rounded-full bg-blue-100 px-2.5 py-1 text-sm font-medium text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+                    <svg class="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Reprocessing Filters
+                </span>
+                {% elif sync_running %}
+                <span class="inline-flex items-center gap-x-1.5 rounded-full bg-yellow-100 px-2.5 py-1 text-sm font-medium text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300">
                     <svg class="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                         <path class="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
@@ -13,7 +21,7 @@
                     Syncing
                 </span>
                 {% else %}
-                <span class="inline-flex items-center gap-x-1.5 rounded-full bg-green-100 px-2.5 py-1 text-sm font-medium text-green-700">
+                <span class="inline-flex items-center gap-x-1.5 rounded-full bg-green-100 px-2.5 py-1 text-sm font-medium text-green-700 dark:bg-green-900/30 dark:text-green-300">
                     <svg class="h-1.5 w-1.5 fill-green-500" viewBox="0 0 6 6"><circle cx="3" cy="3" r="3" /></svg>
                     Idle
                 </span>
@@ -21,47 +29,47 @@
             </dd>
         </div>
         <div>
-            <dt class="text-sm font-medium text-gray-500">Last Full Sync</dt>
-            <dd class="mt-1 text-sm text-gray-900">{{ state.last_full_sync|format_datetime }}</dd>
+            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Last Full Sync</dt>
+            <dd class="mt-1 text-sm text-gray-900 dark:text-gray-100">{{ state.last_full_sync|format_datetime }}</dd>
         </div>
         <div>
-            <dt class="text-sm font-medium text-gray-500">Last Incremental Sync</dt>
-            <dd class="mt-1 text-sm text-gray-900">{{ state.last_incremental_sync|format_datetime }}</dd>
+            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Last Incremental Sync</dt>
+            <dd class="mt-1 text-sm text-gray-900 dark:text-gray-100">{{ state.last_incremental_sync|format_datetime }}</dd>
         </div>
         <div>
-            <dt class="text-sm font-medium text-gray-500">Highest TVMaze ID</dt>
-            <dd class="mt-1 text-sm text-gray-900">{{ state.highest_tvmaze_id|format_number if state.highest_tvmaze_id else 'N/A' }}</dd>
+            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Highest TVMaze ID</dt>
+            <dd class="mt-1 text-sm text-gray-900 dark:text-gray-100">{{ state.highest_tvmaze_id|format_number if state.highest_tvmaze_id else 'N/A' }}</dd>
         </div>
     </div>
 
     <div class="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div>
-            <dt class="text-sm font-medium text-gray-500">Database Health</dt>
+            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Database Health</dt>
             <dd class="mt-1">
                 {% if db_healthy %}
-                <span class="text-green-600">Healthy</span>
+                <span class="text-green-600 dark:text-green-400">Healthy</span>
                 {% else %}
-                <span class="text-red-600">Unhealthy</span>
+                <span class="text-red-600 dark:text-red-400">Unhealthy</span>
                 {% endif %}
             </dd>
         </div>
         <div>
-            <dt class="text-sm font-medium text-gray-500">Sonarr Health</dt>
+            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Sonarr Health</dt>
             <dd class="mt-1">
                 {% if sonarr_healthy %}
-                <span class="text-green-600">Connected</span>
+                <span class="text-green-600 dark:text-green-400">Connected</span>
                 {% else %}
-                <span class="text-red-600">Disconnected</span>
+                <span class="text-red-600 dark:text-red-400">Disconnected</span>
                 {% endif %}
             </dd>
         </div>
         <div>
-            <dt class="text-sm font-medium text-gray-500">Total Shows</dt>
-            <dd class="mt-1 text-sm text-gray-900">{{ total_shows|format_number }}</dd>
+            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Shows</dt>
+            <dd class="mt-1 text-sm text-gray-900 dark:text-gray-100">{{ total_shows|format_number }}</dd>
         </div>
         <div>
-            <dt class="text-sm font-medium text-gray-500">Last TVMaze Page</dt>
-            <dd class="mt-1 text-sm text-gray-900">{{ state.last_tvmaze_page if state.last_tvmaze_page else 'N/A' }}</dd>
+            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Last TVMaze Page</dt>
+            <dd class="mt-1 text-sm text-gray-900 dark:text-gray-100">{{ state.last_tvmaze_page if state.last_tvmaze_page else 'N/A' }}</dd>
         </div>
     </div>
 </div>

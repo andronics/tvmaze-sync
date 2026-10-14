@@ -4,6 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}TVMaze-Sync{% endblock %}</title>
+    <script>
+        // Set theme before first paint to avoid a flash of the wrong theme.
+        (function() {
+            var theme = localStorage.getItem('theme');
+            var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            if (theme === 'dark' || (!theme && prefersDark)) {
+                document.documentElement.classList.add('dark');
+            }
+        })();
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
     <script>
@@ -22,7 +32,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
     {% block head %}{% endblock %}
 </head>
-<body class="h-full bg-gray-50" hx-headers='{"X-API-Key": "{{ api_key }}"}'>
+<body class="h-full bg-gray-50 dark:bg-gray-900 dark:text-gray-100" hx-headers='{"X-API-Key": "{{ api_key }}"}'>
     <div class="min-h-full">
         {% include 'components/nav.html' %}
 
@@ -33,7 +43,7 @@
                     {% if messages %}
                         <div class="mb-4 space-y-2">
                             {% for category, message in messages %}
-                                <div class="rounded-md p-4 {% if category == 'error' %}bg-red-50 text-red-800{% elif category == 'success' %}bg-green-50 text-green-800{% else %}bg-blue-50 text-blue-800{% endif %}">
+                                <div class="rounded-md p-4 {% if category == 'error' %}bg-red-50 text-red-800 dark:bg-red-900/30 dark:text-red-300{% elif category == 'success' %}bg-green-50 text-green-800 dark:bg-green-900/30 dark:text-green-300{% else %}bg-blue-50 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300{% endif %}">
                                     <p class="text-sm font-medium">{{ message }}</p>
                                 </div>
                             {% endfor %}

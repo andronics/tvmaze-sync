@@ -6,10 +6,10 @@
 <div class="space-y-6">
     <!-- Header -->
     <div>
-        <h1 class="text-2xl font-bold leading-7 text-gray-900 sm:truncate sm:text-3xl sm:tracking-tight">
+        <h1 class="text-2xl font-bold leading-7 text-gray-900 dark:text-gray-100 sm:truncate sm:text-3xl sm:tracking-tight">
             Configuration
         </h1>
-        <p class="mt-1 text-sm text-gray-500">
+        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
             Current running configuration (sensitive values are masked)
         </p>
     </div>
@@ -21,11 +21,11 @@
                 <div class="ml-{{ depth * 4 }} space-y-1">
                     {% for key, val in value.items() %}
                         <div class="flex">
-                            <span class="text-blue-600 font-medium">{{ key }}:</span>
+                            <span class="text-blue-600 dark:text-blue-400 font-medium">{{ key }}:</span>
                             {% if val is mapping or val is iterable and val is not string %}
                                 {{ render_config_value(val, depth + 1) }}
                             {% else %}
-                                <span class="ml-2 text-gray-700 config-value">{{ val if val is not none else 'null' }}</span>
+                                <span class="ml-2 text-gray-700 dark:text-gray-300 config-value">{{ val if val is not none else 'null' }}</span>
                             {% endif %}
                         </div>
                     {% endfor %}
@@ -34,37 +34,37 @@
                 <div class="ml-{{ depth * 4 }}">
                     {% for item in value %}
                         <div class="flex">
-                            <span class="text-gray-400">-</span>
+                            <span class="text-gray-400 dark:text-gray-600">-</span>
                             {% if item is mapping %}
                                 {{ render_config_value(item, depth + 1) }}
                             {% else %}
-                                <span class="ml-2 text-gray-700 config-value">{{ item }}</span>
+                                <span class="ml-2 text-gray-700 dark:text-gray-300 config-value">{{ item }}</span>
                             {% endif %}
                         </div>
                     {% endfor %}
                 </div>
             {% else %}
-                <span class="text-gray-700 config-value">{{ value if value is not none else 'null' }}</span>
+                <span class="text-gray-700 dark:text-gray-300 config-value">{{ value if value is not none else 'null' }}</span>
             {% endif %}
         {% endmacro %}
 
         <!-- TVMaze Section -->
         {% if config.tvmaze %}
-        <div class="bg-white shadow rounded-lg overflow-hidden">
+        <div class="bg-white shadow rounded-lg overflow-hidden dark:bg-gray-800 dark:shadow-none dark:ring-1 dark:ring-white/10">
             <button type="button"
-                    class="w-full px-4 py-4 text-left flex justify-between items-center hover:bg-gray-50"
+                    class="w-full px-4 py-4 text-left flex justify-between items-center hover:bg-gray-50 dark:hover:bg-gray-700/50"
                     onclick="this.nextElementSibling.classList.toggle('hidden'); this.querySelector('svg').classList.toggle('rotate-180')">
-                <span class="text-lg font-medium text-gray-900">TVMaze Settings</span>
-                <svg class="h-5 w-5 text-gray-500 transition-transform" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <span class="text-lg font-medium text-gray-900 dark:text-gray-100">TVMaze Settings</span>
+                <svg class="h-5 w-5 text-gray-500 transition-transform dark:text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
                 </svg>
             </button>
-            <div class="px-4 pb-4 border-t border-gray-200">
+            <div class="px-4 pb-4 border-t border-gray-200 dark:border-gray-700">
                 <dl class="mt-4 space-y-3">
                     {% for key, value in config.tvmaze.items() %}
                     <div class="flex flex-col sm:flex-row sm:gap-4">
-                        <dt class="text-sm font-medium text-gray-500 sm:w-48">{{ key }}</dt>
-                        <dd class="mt-1 sm:mt-0 text-sm text-gray-900 config-value">
+                        <dt class="text-sm font-medium text-gray-500 sm:w-48 dark:text-gray-400">{{ key }}</dt>
+                        <dd class="mt-1 sm:mt-0 text-sm text-gray-900 dark:text-gray-100 config-value">
                             {% if value is iterable and value is not string %}
                                 {{ value | join(', ') or 'None' }}
                             {% else %}
@@ -80,21 +80,21 @@
 
         <!-- Sync Section -->
         {% if config.sync %}
-        <div class="bg-white shadow rounded-lg overflow-hidden">
+        <div class="bg-white shadow rounded-lg overflow-hidden dark:bg-gray-800 dark:shadow-none dark:ring-1 dark:ring-white/10">
             <button type="button"
-                    class="w-full px-4 py-4 text-left flex justify-between items-center hover:bg-gray-50"
+                    class="w-full px-4 py-4 text-left flex justify-between items-center hover:bg-gray-50 dark:hover:bg-gray-700/50"
                     onclick="this.nextElementSibling.classList.toggle('hidden'); this.querySelector('svg').classList.toggle('rotate-180')">
-                <span class="text-lg font-medium text-gray-900">Sync Settings</span>
-                <svg class="h-5 w-5 text-gray-500 transition-transform" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <span class="text-lg font-medium text-gray-900 dark:text-gray-100">Sync Settings</span>
+                <svg class="h-5 w-5 text-gray-500 transition-transform dark:text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
                 </svg>
             </button>
-            <div class="px-4 pb-4 border-t border-gray-200">
+            <div class="px-4 pb-4 border-t border-gray-200 dark:border-gray-700">
                 <dl class="mt-4 space-y-3">
                     {% for key, value in config.sync.items() %}
                     <div class="flex flex-col sm:flex-row sm:gap-4">
-                        <dt class="text-sm font-medium text-gray-500 sm:w-48">{{ key }}</dt>
-                        <dd class="mt-1 sm:mt-0 text-sm text-gray-900 config-value">{{ value if value is not none else 'null' }}</dd>
+                        <dt class="text-sm font-medium text-gray-500 sm:w-48 dark:text-gray-400">{{ key }}</dt>
+                        <dd class="mt-1 sm:mt-0 text-sm text-gray-900 dark:text-gray-100 config-value">{{ value if value is not none else 'null' }}</dd>
                     </div>
                     {% endfor %}
                 </dl>
@@ -104,31 +104,31 @@
 
         <!-- Exclude Section -->
         {% if config.filters and config.filters.exclude %}
-        <div class="bg-white shadow rounded-lg overflow-hidden">
+        <div class="bg-white shadow rounded-lg overflow-hidden dark:bg-gray-800 dark:shadow-none dark:ring-1 dark:ring-white/10">
             <button type="button"
-                    class="w-full px-4 py-4 text-left flex justify-between items-center hover:bg-gray-50"
+                    class="w-full px-4 py-4 text-left flex justify-between items-center hover:bg-gray-50 dark:hover:bg-gray-700/50"
                     onclick="this.nextElementSibling.classList.toggle('hidden'); this.querySelector('svg').classList.toggle('rotate-180')">
-                <span class="text-lg font-medium text-gray-900">Global Excludes</span>
-                <svg class="h-5 w-5 text-gray-500 transition-transform" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <span class="text-lg font-medium text-gray-900 dark:text-gray-100">Global Excludes</span>
+                <svg class="h-5 w-5 text-gray-500 transition-transform dark:text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
                 </svg>
             </button>
-            <div class="px-4 pb-4 border-t border-gray-200">
+            <div class="px-4 pb-4 border-t border-gray-200 dark:border-gray-700">
                 <dl class="mt-4 space-y-3">
                     {% for key, value in config.filters.exclude.items() %}
                     <div class="flex flex-col sm:flex-row sm:gap-4">
-                        <dt class="text-sm font-medium text-gray-500 sm:w-48">{{ key }}</dt>
-                        <dd class="mt-1 sm:mt-0 text-sm text-gray-900">
+                        <dt class="text-sm font-medium text-gray-500 sm:w-48 dark:text-gray-400">{{ key }}</dt>
+                        <dd class="mt-1 sm:mt-0 text-sm text-gray-900 dark:text-gray-100">
                             {% if value is iterable and value is not string and value %}
                                 <div class="flex flex-wrap gap-1">
                                     {% for item in value %}
-                                    <span class="inline-flex items-center rounded-md bg-red-50 px-2 py-1 text-xs font-medium text-red-700 ring-1 ring-inset ring-red-600/10">
+                                    <span class="inline-flex items-center rounded-md bg-red-50 px-2 py-1 text-xs font-medium text-red-700 ring-1 ring-inset ring-red-600/10 dark:bg-red-900/30 dark:text-red-300 dark:ring-red-400/20">
                                         {{ item }}
                                     </span>
                                     {% endfor %}
                                 </div>
                             {% else %}
-                                <span class="text-gray-500">None</span>
+                                <span class="text-gray-500 dark:text-gray-400">None</span>
                             {% endif %}
                         </dd>
                     </div>
@@ -140,34 +140,34 @@
 
         <!-- Selections Section -->
         {% if config.filters and config.filters.selections %}
-        <div class="bg-white shadow rounded-lg overflow-hidden">
+        <div class="bg-white shadow rounded-lg overflow-hidden dark:bg-gray-800 dark:shadow-none dark:ring-1 dark:ring-white/10">
             <button type="button"
-                    class="w-full px-4 py-4 text-left flex justify-between items-center hover:bg-gray-50"
+                    class="w-full px-4 py-4 text-left flex justify-between items-center hover:bg-gray-50 dark:hover:bg-gray-700/50"
                     onclick="this.nextElementSibling.classList.toggle('hidden'); this.querySelector('svg').classList.toggle('rotate-180')">
-                <span class="text-lg font-medium text-gray-900">Selections ({{ config.filters.selections|length }})</span>
-                <svg class="h-5 w-5 text-gray-500 transition-transform" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <span class="text-lg font-medium text-gray-900 dark:text-gray-100">Selections ({{ config.filters.selections|length }})</span>
+                <svg class="h-5 w-5 text-gray-500 transition-transform dark:text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
                 </svg>
             </button>
-            <div class="px-4 pb-4 border-t border-gray-200">
+            <div class="px-4 pb-4 border-t border-gray-200 dark:border-gray-700">
                 <div class="mt-4 space-y-4">
                     {% for selection in config.filters.selections %}
-                    <div class="bg-gray-50 rounded-lg p-4">
-                        <h4 class="text-sm font-medium text-gray-900 mb-3">Selection {{ loop.index }}</h4>
+                    <div class="bg-gray-50 rounded-lg p-4 dark:bg-gray-900/40">
+                        <h4 class="text-sm font-medium text-gray-900 mb-3 dark:text-gray-100">Selection {{ loop.index }}</h4>
                         <dl class="space-y-2">
                             {% for key, value in selection.items() %}
                             {% if value %}
                             <div class="flex flex-col sm:flex-row sm:gap-4">
-                                <dt class="text-xs font-medium text-gray-500 sm:w-32">{{ key }}</dt>
-                                <dd class="mt-1 sm:mt-0 text-xs text-gray-900">
+                                <dt class="text-xs font-medium text-gray-500 sm:w-32 dark:text-gray-400">{{ key }}</dt>
+                                <dd class="mt-1 sm:mt-0 text-xs text-gray-900 dark:text-gray-100">
                                     {% if value is mapping %}
                                         {% for k, v in value.items() %}
-                                            <span class="text-blue-600">{{ k }}:</span> {{ v }}{% if not loop.last %}, {% endif %}
+                                            <span class="text-blue-600 dark:text-blue-400">{{ k }}:</span> {{ v }}{% if not loop.last %}, {% endif %}
                                         {% endfor %}
                                     {% elif value is iterable and value is not string %}
                                         <div class="flex flex-wrap gap-1">
                                             {% for item in value %}
-                                            <span class="inline-flex items-center rounded bg-green-50 px-1.5 py-0.5 text-xs font-medium text-green-700">
+                                            <span class="inline-flex items-center rounded bg-green-50 px-1.5 py-0.5 text-xs font-medium text-green-700 dark:bg-green-900/30 dark:text-green-300">
                                                 {{ item }}
                                             </span>
                                             {% endfor %}
@@ -189,21 +189,21 @@
 
         <!-- Sonarr Section -->
         {% if config.sonarr %}
-        <div class="bg-white shadow rounded-lg overflow-hidden">
+        <div class="bg-white shadow rounded-lg overflow-hidden dark:bg-gray-800 dark:shadow-none dark:ring-1 dark:ring-white/10">
             <button type="button"
-                    class="w-full px-4 py-4 text-left flex justify-between items-center hover:bg-gray-50"
+                    class="w-full px-4 py-4 text-left flex justify-between items-center hover:bg-gray-50 dark:hover:bg-gray-700/50"
                     onclick="this.nextElementSibling.classList.toggle('hidden'); this.querySelector('svg').classList.toggle('rotate-180')">
-                <span class="text-lg font-medium text-gray-900">Sonarr Settings</span>
-                <svg class="h-5 w-5 text-gray-500 transition-transform" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <span class="text-lg font-medium text-gray-900 dark:text-gray-100">Sonarr Settings</span>
+                <svg class="h-5 w-5 text-gray-500 transition-transform dark:text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
                 </svg>
             </button>
-            <div class="px-4 pb-4 border-t border-gray-200">
+            <div class="px-4 pb-4 border-t border-gray-200 dark:border-gray-700">
                 <dl class="mt-4 space-y-3">
                     {% for key, value in config.sonarr.items() %}
                     <div class="flex flex-col sm:flex-row sm:gap-4">
-                        <dt class="text-sm font-medium text-gray-500 sm:w-48">{{ key }}</dt>
-                        <dd class="mt-1 sm:mt-0 text-sm text-gray-900 config-value">
+                        <dt class="text-sm font-medium text-gray-500 sm:w-48 dark:text-gray-400">{{ key }}</dt>
+                        <dd class="mt-1 sm:mt-0 text-sm text-gray-900 dark:text-gray-100 config-value">
                             {% if value is iterable and value is not string %}
                                 {{ value | join(', ') or 'None' }}
                             {% else %}
@@ -219,21 +219,21 @@
 
         <!-- Storage Section -->
         {% if config.storage %}
-        <div class="bg-white shadow rounded-lg overflow-hidden">
+        <div class="bg-white shadow rounded-lg overflow-hidden dark:bg-gray-800 dark:shadow-none dark:ring-1 dark:ring-white/10">
             <button type="button"
-                    class="w-full px-4 py-4 text-left flex justify-between items-center hover:bg-gray-50"
+                    class="w-full px-4 py-4 text-left flex justify-between items-center hover:bg-gray-50 dark:hover:bg-gray-700/50"
                     onclick="this.nextElementSibling.classList.toggle('hidden'); this.querySelector('svg').classList.toggle('rotate-180')">
-                <span class="text-lg font-medium text-gray-900">Storage Settings</span>
-                <svg class="h-5 w-5 text-gray-500 transition-transform" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <span class="text-lg font-medium text-gray-900 dark:text-gray-100">Storage Settings</span>
+                <svg class="h-5 w-5 text-gray-500 transition-transform dark:text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
                 </svg>
             </button>
-            <div class="px-4 pb-4 border-t border-gray-200">
+            <div class="px-4 pb-4 border-t border-gray-200 dark:border-gray-700">
                 <dl class="mt-4 space-y-3">
                     {% for key, value in config.storage.items() %}
                     <div class="flex flex-col sm:flex-row sm:gap-4">
-                        <dt class="text-sm font-medium text-gray-500 sm:w-48">{{ key }}</dt>
-                        <dd class="mt-1 sm:mt-0 text-sm text-gray-900 config-value">{{ value if value is not none else 'null' }}</dd>
+                        <dt class="text-sm font-medium text-gray-500 sm:w-48 dark:text-gray-400">{{ key }}</dt>
+                        <dd class="mt-1 sm:mt-0 text-sm text-gray-900 dark:text-gray-100 config-value">{{ value if value is not none else 'null' }}</dd>
                     </div>
                     {% endfor %}
                 </dl>
@@ -243,21 +243,21 @@
 
         <!-- Logging Section -->
         {% if config.logging %}
-        <div class="bg-white shadow rounded-lg overflow-hidden">
+        <div class="bg-white shadow rounded-lg overflow-hidden dark:bg-gray-800 dark:shadow-none dark:ring-1 dark:ring-white/10">
             <button type="button"
-                    class="w-full px-4 py-4 text-left flex justify-between items-center hover:bg-gray-50"
+                    class="w-full px-4 py-4 text-left flex justify-between items-center hover:bg-gray-50 dark:hover:bg-gray-700/50"
                     onclick="this.nextElementSibling.classList.toggle('hidden'); this.querySelector('svg').classList.toggle('rotate-180')">
-                <span class="text-lg font-medium text-gray-900">Logging Settings</span>
-                <svg class="h-5 w-5 text-gray-500 transition-transform" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <span class="text-lg font-medium text-gray-900 dark:text-gray-100">Logging Settings</span>
+                <svg class="h-5 w-5 text-gray-500 transition-transform dark:text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
                 </svg>
             </button>
-            <div class="px-4 pb-4 border-t border-gray-200">
+            <div class="px-4 pb-4 border-t border-gray-200 dark:border-gray-700">
                 <dl class="mt-4 space-y-3">
                     {% for key, value in config.logging.items() %}
                     <div class="flex flex-col sm:flex-row sm:gap-4">
-                        <dt class="text-sm font-medium text-gray-500 sm:w-48">{{ key }}</dt>
-                        <dd class="mt-1 sm:mt-0 text-sm text-gray-900 config-value">{{ value if value is not none else 'null' }}</dd>
+                        <dt class="text-sm font-medium text-gray-500 sm:w-48 dark:text-gray-400">{{ key }}</dt>
+                        <dd class="mt-1 sm:mt-0 text-sm text-gray-900 dark:text-gray-100 config-value">{{ value if value is not none else 'null' }}</dd>
                     </div>
                     {% endfor %}
                 </dl>
@@ -267,21 +267,21 @@
 
         <!-- Server Section -->
         {% if config.server %}
-        <div class="bg-white shadow rounded-lg overflow-hidden">
+        <div class="bg-white shadow rounded-lg overflow-hidden dark:bg-gray-800 dark:shadow-none dark:ring-1 dark:ring-white/10">
             <button type="button"
-                    class="w-full px-4 py-4 text-left flex justify-between items-center hover:bg-gray-50"
+                    class="w-full px-4 py-4 text-left flex justify-between items-center hover:bg-gray-50 dark:hover:bg-gray-700/50"
                     onclick="this.nextElementSibling.classList.toggle('hidden'); this.querySelector('svg').classList.toggle('rotate-180')">
-                <span class="text-lg font-medium text-gray-900">Server Settings</span>
-                <svg class="h-5 w-5 text-gray-500 transition-transform" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <span class="text-lg font-medium text-gray-900 dark:text-gray-100">Server Settings</span>
+                <svg class="h-5 w-5 text-gray-500 transition-transform dark:text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
                 </svg>
             </button>
-            <div class="px-4 pb-4 border-t border-gray-200">
+            <div class="px-4 pb-4 border-t border-gray-200 dark:border-gray-700">
                 <dl class="mt-4 space-y-3">
                     {% for key, value in config.server.items() %}
                     <div class="flex flex-col sm:flex-row sm:gap-4">
-                        <dt class="text-sm font-medium text-gray-500 sm:w-48">{{ key }}</dt>
-                        <dd class="mt-1 sm:mt-0 text-sm text-gray-900 config-value">{{ value if value is not none else 'null' }}</dd>
+                        <dt class="text-sm font-medium text-gray-500 sm:w-48 dark:text-gray-400">{{ key }}</dt>
+                        <dd class="mt-1 sm:mt-0 text-sm text-gray-900 dark:text-gray-100 config-value">{{ value if value is not none else 'null' }}</dd>
                     </div>
                     {% endfor %}
                 </dl>
@@ -291,15 +291,15 @@
 
         <!-- Dry Run -->
         {% if config.dry_run is defined %}
-        <div class="bg-white shadow rounded-lg overflow-hidden">
+        <div class="bg-white shadow rounded-lg overflow-hidden dark:bg-gray-800 dark:shadow-none dark:ring-1 dark:ring-white/10">
             <div class="px-4 py-4 flex justify-between items-center">
-                <span class="text-lg font-medium text-gray-900">Dry Run Mode</span>
+                <span class="text-lg font-medium text-gray-900 dark:text-gray-100">Dry Run Mode</span>
                 {% if config.dry_run %}
-                <span class="inline-flex items-center rounded-full bg-yellow-100 px-3 py-1 text-sm font-medium text-yellow-800">
+                <span class="inline-flex items-center rounded-full bg-yellow-100 px-3 py-1 text-sm font-medium text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300">
                     Enabled
                 </span>
                 {% else %}
-                <span class="inline-flex items-center rounded-full bg-green-100 px-3 py-1 text-sm font-medium text-green-800">
+                <span class="inline-flex items-center rounded-full bg-green-100 px-3 py-1 text-sm font-medium text-green-800 dark:bg-green-900/30 dark:text-green-300">
                     Disabled
                 </span>
                 {% endif %}

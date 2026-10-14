@@ -3,6 +3,7 @@
 import hashlib
 import json
 import logging
+import threading
 from datetime import date
 from typing import Optional
 
@@ -29,6 +30,18 @@ class ShowProcessor:
         self.config = config
         self.sonarr_config = sonarr_config
         self._validated_sonarr_params: Optional[dict] = None
+        self._reprocessing_filters = False
+        self._reprocessing_lock = threading.Lock()
+
+    @property
+    def is_reprocessing_filters(self) -> bool:
+        """Check if a filter re-evaluation pass is currently running."""
+        with self._reprocessing_lock:
+            return self._reprocessing_filters
+
+    def _set_reprocessing_filters(self, value: bool) -> None:
+        with self._reprocessing_lock:
+            self._reprocessing_filters = value
 
     def set_validated_sonarr_params(
         self,
@@ -303,23 +316,27 @@ def re_evaluate_filtered_shows(db: Database, processor: ShowProcessor) -> int:
     """
     changed = 0
 
-    for show in db.get_all_filtered_shows():
-        result = processor.process(show)
+    processor._set_reprocessing_filters(True)
+    try:
+        for show in db.get_all_filtered_shows():
+            result = processor.process(show)
 
-        if result.decision == Decision.ADD:
-            # Was filtered, now passes
-            db.update_show_status(show.tvmaze_id, ProcessingStatus.PENDING)
-            changed += 1
-            logger.info(f"Show now passes filters: {show.title}")
-        elif result.decision == Decision.FILTER:
-            # Still filtered, possibly different reason
-            if result.reason != show.filter_reason:
-                db.mark_show_filtered(
-                    show.tvmaze_id,
-                    result.reason,
-                    result.filter_category
-                )
-                logger.debug(f"Updated filter reason for {show.title}: {result.reason}")
+            if result.decision == Decision.ADD:
+                # Was filtered, now passes
+                db.update_show_status(show.tvmaze_id, ProcessingStatus.PENDING)
+                changed += 1
+                logger.info(f"Show now passes filters: {show.title}")
+            elif result.decision == Decision.FILTER:
+                # Still filtered, possibly different reason
+                if result.reason != show.filter_reason:
+                    db.mark_show_filtered(
+                        show.tvmaze_id,
+                        result.reason,
+                        result.filter_category
+                    )
+                    logger.debug(f"Updated filter reason for {show.title}: {result.reason}")
+    finally:
+        processor._set_reprocessing_filters(False)
 
     logger.info(f"Re-evaluated filtered shows: {changed} now pass filters")
     return changed

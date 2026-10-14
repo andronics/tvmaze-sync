@@ -7,7 +7,7 @@
     <!-- Header -->
     <div class="md:flex md:items-center md:justify-between">
         <div class="min-w-0 flex-1">
-            <h1 class="text-2xl font-bold leading-7 text-gray-900 sm:truncate sm:text-3xl sm:tracking-tight">
+            <h1 class="text-2xl font-bold leading-7 text-gray-900 dark:text-gray-100 sm:truncate sm:text-3xl sm:tracking-tight">
                 Dashboard
             </h1>
         </div>
@@ -28,8 +28,8 @@
     <!-- Health Status Cards -->
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <!-- Database Health -->
-        <div class="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6">
-            <dt class="truncate text-sm font-medium text-gray-500">Database</dt>
+        <div class="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6 dark:bg-gray-800 dark:shadow-none dark:ring-1 dark:ring-white/10">
+            <dt class="truncate text-sm font-medium text-gray-500 dark:text-gray-400">Database</dt>
             <dd class="mt-1 flex items-center">
                 {% if db_healthy %}
                 <span class="inline-flex items-center gap-x-1.5 rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-700">
@@ -46,8 +46,8 @@
         </div>
 
         <!-- Sonarr Health -->
-        <div class="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6">
-            <dt class="truncate text-sm font-medium text-gray-500">Sonarr</dt>
+        <div class="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6 dark:bg-gray-800 dark:shadow-none dark:ring-1 dark:ring-white/10">
+            <dt class="truncate text-sm font-medium text-gray-500 dark:text-gray-400">Sonarr</dt>
             <dd class="mt-1 flex items-center">
                 {% if sonarr_healthy %}
                 <span class="inline-flex items-center gap-x-1.5 rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-700">
@@ -64,9 +64,9 @@
         </div>
 
         <!-- Last Sync -->
-        <div class="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6">
-            <dt class="truncate text-sm font-medium text-gray-500">Last Sync</dt>
-            <dd class="mt-1 text-sm text-gray-900">
+        <div class="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6 dark:bg-gray-800 dark:shadow-none dark:ring-1 dark:ring-white/10">
+            <dt class="truncate text-sm font-medium text-gray-500 dark:text-gray-400">Last Sync</dt>
+            <dd class="mt-1 text-sm text-gray-900 dark:text-gray-100">
                 {% if state.last_incremental_sync %}
                     {{ state.last_incremental_sync|format_datetime }}
                 {% elif state.last_full_sync %}
@@ -78,9 +78,9 @@
         </div>
 
         <!-- Next Sync -->
-        <div class="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6">
-            <dt class="truncate text-sm font-medium text-gray-500">Next Sync</dt>
-            <dd class="mt-1 text-sm text-gray-900">
+        <div class="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6 dark:bg-gray-800 dark:shadow-none dark:ring-1 dark:ring-white/10">
+            <dt class="truncate text-sm font-medium text-gray-500 dark:text-gray-400">Next Sync</dt>
+            <dd class="mt-1 text-sm text-gray-900 dark:text-gray-100">
                 {% if scheduler.next_run %}
                     {{ scheduler.next_run|format_datetime }}
                 {% else %}
@@ -93,33 +93,33 @@
     <!-- Stats Cards -->
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <!-- Total Shows -->
-        <div class="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6">
-            <dt class="truncate text-sm font-medium text-gray-500">Total Shows</dt>
-            <dd class="mt-1 text-3xl font-semibold tracking-tight text-gray-900">
+        <div class="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6 dark:bg-gray-800 dark:shadow-none dark:ring-1 dark:ring-white/10">
+            <dt class="truncate text-sm font-medium text-gray-500 dark:text-gray-400">Total Shows</dt>
+            <dd class="mt-1 text-3xl font-semibold tracking-tight text-gray-900 dark:text-gray-100">
                 {{ total_shows|format_number }}
             </dd>
         </div>
 
         <!-- Added to Sonarr -->
-        <div class="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6">
-            <dt class="truncate text-sm font-medium text-gray-500">Added to Sonarr</dt>
-            <dd class="mt-1 text-3xl font-semibold tracking-tight text-green-600">
+        <div class="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6 dark:bg-gray-800 dark:shadow-none dark:ring-1 dark:ring-white/10">
+            <dt class="truncate text-sm font-medium text-gray-500 dark:text-gray-400">Added to Sonarr</dt>
+            <dd class="mt-1 text-3xl font-semibold tracking-tight text-green-600 dark:text-green-400">
                 {{ status_counts.get('added', 0)|format_number }}
             </dd>
         </div>
 
         <!-- Filtered -->
-        <div class="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6">
-            <dt class="truncate text-sm font-medium text-gray-500">Filtered Out</dt>
-            <dd class="mt-1 text-3xl font-semibold tracking-tight text-gray-600">
+        <div class="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6 dark:bg-gray-800 dark:shadow-none dark:ring-1 dark:ring-white/10">
+            <dt class="truncate text-sm font-medium text-gray-500 dark:text-gray-400">Filtered Out</dt>
+            <dd class="mt-1 text-3xl font-semibold tracking-tight text-gray-600 dark:text-gray-400">
                 {{ status_counts.get('filtered', 0)|format_number }}
             </dd>
         </div>
 
         <!-- Pending TVDB -->
-        <div class="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6">
-            <dt class="truncate text-sm font-medium text-gray-500">Pending TVDB</dt>
-            <dd class="mt-1 text-3xl font-semibold tracking-tight text-yellow-600">
+        <div class="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6 dark:bg-gray-800 dark:shadow-none dark:ring-1 dark:ring-white/10">
+            <dt class="truncate text-sm font-medium text-gray-500 dark:text-gray-400">Pending TVDB</dt>
+            <dd class="mt-1 text-3xl font-semibold tracking-tight text-yellow-600 dark:text-yellow-400">
                 {{ status_counts.get('pending_tvdb', 0)|format_number }}
             </dd>
         </div>
@@ -128,18 +128,18 @@
     <!-- Status Distribution & Sync Status -->
     <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <!-- Status Distribution -->
-        <div class="overflow-hidden rounded-lg bg-white shadow">
+        <div class="overflow-hidden rounded-lg bg-white shadow dark:bg-gray-800 dark:shadow-none dark:ring-1 dark:ring-white/10">
             <div class="px-4 py-5 sm:p-6">
-                <h3 class="text-base font-semibold leading-6 text-gray-900">Status Distribution</h3>
+                <h3 class="text-base font-semibold leading-6 text-gray-900 dark:text-gray-100">Status Distribution</h3>
                 <div class="mt-4 space-y-3">
                     {% for status, count in status_counts.items() %}
                     {% set color_map = {'added': '#22c55e', 'filtered': '#6b7280', 'pending_tvdb': '#eab308', 'pending': '#3b82f6', 'failed': '#ef4444', 'exists': '#a855f7', 'skipped': '#f97316', 'abandoned': '#9ca3af'} %}
                     <div>
                         <div class="flex justify-between text-sm">
-                            <span class="font-medium text-gray-700 capitalize">{{ status.replace('_', ' ') }}</span>
-                            <span class="text-gray-500">{{ count|format_number }}</span>
+                            <span class="font-medium text-gray-700 dark:text-gray-300 capitalize">{{ status.replace('_', ' ') }}</span>
+                            <span class="text-gray-500 dark:text-gray-400">{{ count|format_number }}</span>
                         </div>
-                        <div class="mt-1 w-full bg-gray-200 rounded-full h-2">
+                        <div class="mt-1 w-full bg-gray-200 rounded-full h-2 dark:bg-gray-700">
                             {% set percentage = (count / total_shows * 100) if total_shows > 0 else 0 %}
                             <div class="h-2 rounded-full" style="width: {{ percentage }}%; background-color: {{ color_map.get(status, '#6b7280') }};"></div>
                         </div>
@@ -150,21 +150,21 @@
         </div>
 
         <!-- Filter Reasons -->
-        <div class="overflow-hidden rounded-lg bg-white shadow">
+        <div class="overflow-hidden rounded-lg bg-white shadow dark:bg-gray-800 dark:shadow-none dark:ring-1 dark:ring-white/10">
             <div class="px-4 py-5 sm:p-6">
-                <h3 class="text-base font-semibold leading-6 text-gray-900">Filter Reasons</h3>
+                <h3 class="text-base font-semibold leading-6 text-gray-900 dark:text-gray-100">Filter Reasons</h3>
                 <div class="mt-4">
                     {% if filter_reasons %}
                     <div class="space-y-2">
                         {% for reason, count in filter_reasons.items()|sort(attribute='1', reverse=true) %}
                         <div class="flex justify-between text-sm">
-                            <span class="text-gray-700 capitalize">{{ reason }}</span>
-                            <span class="text-gray-500">{{ count|format_number }}</span>
+                            <span class="text-gray-700 dark:text-gray-300 capitalize">{{ reason }}</span>
+                            <span class="text-gray-500 dark:text-gray-400">{{ count|format_number }}</span>
                         </div>
                         {% endfor %}
                     </div>
                     {% else %}
-                    <p class="text-sm text-gray-500">No filter data available</p>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">No filter data available</p>
                     {% endif %}
                 </div>
             </div>
@@ -172,7 +172,7 @@
     </div>
 
     <!-- Sync State Details -->
-    <div class="overflow-hidden rounded-lg bg-white shadow"
+    <div class="overflow-hidden rounded-lg bg-white shadow dark:bg-gray-800 dark:shadow-none dark:ring-1 dark:ring-white/10"
          hx-get="{{ url_for('ui_partial_sync_status') }}"
          hx-trigger="every 30s"
          hx-swap="innerHTML">

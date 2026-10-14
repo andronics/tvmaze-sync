@@ -1,12 +1,24 @@
 <!DOCTYPE html>
-<html lang="en" class="h-full bg-gray-50">
+<html lang="en" class="h-full">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - TVMaze-Sync</title>
+    <script>
+        (function() {
+            var theme = localStorage.getItem('theme');
+            var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            if (theme === 'dark' || (!theme && prefersDark)) {
+                document.documentElement.classList.add('dark');
+            }
+        })();
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = { darkMode: 'class' }
+    </script>
 </head>
-<body class="h-full">
+<body class="h-full bg-gray-50 dark:bg-gray-900">
     <div class="flex min-h-full flex-col justify-center py-12 sm:px-6 lg:px-8">
         <div class="sm:mx-auto sm:w-full sm:max-w-md">
             <div class="flex justify-center">
@@ -14,18 +26,18 @@
                     <path stroke-linecap="round" stroke-linejoin="round" d="M6 20.25h12m-7.5-3v3m3-3v3m-10.125-3h17.25c.621 0 1.125-.504 1.125-1.125V4.875c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125Z" />
                 </svg>
             </div>
-            <h2 class="mt-6 text-center text-2xl font-bold leading-9 tracking-tight text-gray-900">
+            <h2 class="mt-6 text-center text-2xl font-bold leading-9 tracking-tight text-gray-900 dark:text-gray-100">
                 TVMaze-Sync
             </h2>
-            <p class="mt-2 text-center text-sm text-gray-600">
+            <p class="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
                 Enter your API key to continue
             </p>
         </div>
 
         <div class="mt-10 sm:mx-auto sm:w-full sm:max-w-[480px]">
-            <div class="bg-white px-6 py-12 shadow sm:rounded-lg sm:px-12">
+            <div class="bg-white px-6 py-12 shadow sm:rounded-lg sm:px-12 dark:bg-gray-800 dark:shadow-none dark:ring-1 dark:ring-white/10">
                 {% if error %}
-                <div class="mb-4 rounded-md bg-red-50 p-4">
+                <div class="mb-4 rounded-md bg-red-50 p-4 dark:bg-red-900/30">
                     <div class="flex">
                         <div class="flex-shrink-0">
                             <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
@@ -33,7 +45,7 @@
                             </svg>
                         </div>
                         <div class="ml-3">
-                            <p class="text-sm font-medium text-red-800">{{ error }}</p>
+                            <p class="text-sm font-medium text-red-800 dark:text-red-300">{{ error }}</p>
                         </div>
                     </div>
                 </div>
@@ -41,7 +53,7 @@
 
                 <form class="space-y-6" action="{{ url_for('ui_login') }}" method="POST">
                     <div>
-                        <label for="api_key" class="block text-sm font-medium leading-6 text-gray-900">
+                        <label for="api_key" class="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-100">
                             API Key
                         </label>
                         <div class="mt-2">
@@ -50,7 +62,7 @@
                                    type="password"
                                    autocomplete="current-password"
                                    required
-                                   class="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6 px-3"
+                                   class="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6 px-3 dark:bg-gray-900 dark:text-gray-100 dark:ring-gray-600"
                                    placeholder="Enter your API key">
                         </div>
                     </div>
@@ -64,7 +76,7 @@
                 </form>
             </div>
 
-            <p class="mt-10 text-center text-sm text-gray-500">
+            <p class="mt-10 text-center text-sm text-gray-500 dark:text-gray-400">
                 The API key is configured in your config.yaml file under server.api_key
             </p>
         </div>

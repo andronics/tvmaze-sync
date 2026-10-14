@@ -2,6 +2,12 @@
  * TVMaze-Sync Web UI JavaScript utilities
  */
 
+// Dark/light theme toggle (persisted in localStorage, applied via the 'dark' class on <html>)
+function toggleTheme() {
+    const isDark = document.documentElement.classList.toggle('dark');
+    localStorage.setItem('theme', isDark ? 'dark' : 'light');
+}
+
 // Toast notification system
 const Toast = {
     container: null,

@@ -224,13 +224,6 @@ def main():
     processor = ShowProcessor(config.filters, config.sonarr)
     processor.set_validated_sonarr_params(**sonarr.validated_params)
 
-    # ============ Check Filter Changes ============
-    check_filter_change(state, config.filters, db, processor)
-
-    # ============ Sync Selections to Sonarr ============
-    # Ensure all shows matching selections are in Sonarr (independent of TVMaze sync)
-    sync_selections_to_sonarr(db, config, sonarr, processor)
-
     # ============ Create Sync Function ============
     def run_sync():
         sync_cycle(
@@ -242,11 +235,14 @@ def main():
             processor=processor
         )
 
-    # ============ Start Scheduler ============
+    # ============ Create Scheduler ============
     interval = parse_duration(config.sync.poll_interval)
     scheduler = Scheduler(interval=interval, sync_func=run_sync)
 
     # ============ Start Flask Server ============
+    # Started before filter re-evaluation/backfill below so the web UI and
+    # health checks are available immediately, rather than blocking behind
+    # a potentially long synchronous re-evaluation of the cached show set.
     app = None
     if config.server.enabled:
         from .server import create_app
@@ -262,6 +258,13 @@ def main():
         flask_thread.daemon = True
         flask_thread.start()
         logger.info(f"HTTP server listening on port {config.server.port}")
+
+    # ============ Check Filter Changes ============
+    check_filter_change(state, config.filters, db, processor)
+
+    # ============ Sync Selections to Sonarr ============
+    # Ensure all shows matching selections are in Sonarr (independent of TVMaze sync)
+    sync_selections_to_sonarr(db, config, sonarr, processor)
 
     # ============ Signal Handling ============
     def shutdown(signum, frame):

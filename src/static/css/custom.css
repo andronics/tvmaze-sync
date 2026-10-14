@@ -77,6 +77,11 @@
     animation: skeleton-loading 1.5s infinite;
 }
 
+html.dark .skeleton {
+    background: linear-gradient(90deg, #27272a 25%, #3f3f46 50%, #27272a 75%);
+    background-size: 200% 100%;
+}
+
 @keyframes skeleton-loading {
     0% {
         background-position: 200% 0;
@@ -110,4 +115,16 @@
 
 ::-webkit-scrollbar-thumb:hover {
     background: #a1a1a1;
+}
+
+html.dark ::-webkit-scrollbar-track {
+    background: #27272a;
+}
+
+html.dark ::-webkit-scrollbar-thumb {
+    background: #52525b;
+}
+
+html.dark ::-webkit-scrollbar-thumb:hover {
+    background: #71717a;
 }

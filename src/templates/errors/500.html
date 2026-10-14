@@ -4,19 +4,31 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>500 - Server Error | TVMaze-Sync</title>
+    <script>
+        (function() {
+            var theme = localStorage.getItem('theme');
+            var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            if (theme === 'dark' || (!theme && prefersDark)) {
+                document.documentElement.classList.add('dark');
+            }
+        })();
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = { darkMode: 'class' }
+    </script>
 </head>
 <body class="h-full">
-    <main class="grid min-h-full place-items-center bg-white px-6 py-24 sm:py-32 lg:px-8">
+    <main class="grid min-h-full place-items-center bg-white px-6 py-24 sm:py-32 lg:px-8 dark:bg-gray-900">
         <div class="text-center">
-            <p class="text-base font-semibold text-red-600">500</p>
-            <h1 class="mt-4 text-3xl font-bold tracking-tight text-gray-900 sm:text-5xl">Server Error</h1>
-            <p class="mt-6 text-base leading-7 text-gray-600">Something went wrong on our end. Please try again later.</p>
+            <p class="text-base font-semibold text-red-600 dark:text-red-400">500</p>
+            <h1 class="mt-4 text-3xl font-bold tracking-tight text-gray-900 sm:text-5xl dark:text-gray-100">Server Error</h1>
+            <p class="mt-6 text-base leading-7 text-gray-600 dark:text-gray-400">Something went wrong on our end. Please try again later.</p>
             <div class="mt-10 flex items-center justify-center gap-x-6">
                 <a href="/" class="rounded-md bg-blue-600 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600">
                     Go to Dashboard
                 </a>
-                <a href="/health" class="text-sm font-semibold text-gray-900">
+                <a href="/health" class="text-sm font-semibold text-gray-900 dark:text-gray-100">
                     Check Health <span aria-hidden="true">&rarr;</span>
                 </a>
             </div>

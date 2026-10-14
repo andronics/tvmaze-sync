@@ -1,37 +1,37 @@
-<div class="bg-white px-4 pb-4 pt-5 sm:p-6">
+<div class="bg-white px-4 pb-4 pt-5 sm:p-6 dark:bg-gray-800">
     <div class="sm:flex sm:items-start">
         <div class="mt-3 text-center sm:mt-0 sm:text-left w-full">
-            <h3 class="text-lg font-semibold leading-6 text-gray-900" id="modal-title">
+            <h3 class="text-lg font-semibold leading-6 text-gray-900 dark:text-gray-100" id="modal-title">
                 {{ show.title }}
             </h3>
 
             <!-- Status Badge -->
             <div class="mt-2">
                 {% set color = show.processing_status|status_color %}
-                <span class="inline-flex items-center rounded-full bg-{{ color }}-100 px-3 py-1 text-sm font-medium text-{{ color }}-800">
+                <span class="inline-flex items-center rounded-full bg-{{ color }}-100 px-3 py-1 text-sm font-medium text-{{ color }}-800 dark:bg-{{ color }}-900/30 dark:text-{{ color }}-300">
                     {{ show.processing_status.replace('_', ' ')|title }}
                 </span>
                 {% if show.filter_reason %}
-                <span class="ml-2 text-sm text-gray-500">{{ show.filter_reason }}</span>
+                <span class="ml-2 text-sm text-gray-500 dark:text-gray-400">{{ show.filter_reason }}</span>
                 {% endif %}
             </div>
 
             <!-- Details Grid -->
-            <div class="mt-6 border-t border-gray-200 pt-4">
+            <div class="mt-6 border-t border-gray-200 pt-4 dark:border-gray-700">
                 <dl class="grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2">
                     <!-- IDs -->
                     <div>
-                        <dt class="text-sm font-medium text-gray-500">TVMaze ID</dt>
-                        <dd class="mt-1 text-sm text-gray-900">{{ show.tvmaze_id }}</dd>
+                        <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">TVMaze ID</dt>
+                        <dd class="mt-1 text-sm text-gray-900 dark:text-gray-100">{{ show.tvmaze_id }}</dd>
                     </div>
                     <div>
-                        <dt class="text-sm font-medium text-gray-500">TVDB ID</dt>
-                        <dd class="mt-1 text-sm text-gray-900">{{ show.tvdb_id or 'Not available' }}</dd>
+                        <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">TVDB ID</dt>
+                        <dd class="mt-1 text-sm text-gray-900 dark:text-gray-100">{{ show.tvdb_id or 'Not available' }}</dd>
                     </div>
                     {% if show.imdb_id %}
                     <div>
-                        <dt class="text-sm font-medium text-gray-500">IMDb ID</dt>
-                        <dd class="mt-1 text-sm text-gray-900">
+                        <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">IMDb ID</dt>
+                        <dd class="mt-1 text-sm text-gray-900 dark:text-gray-100">
                             <a href="https://www.imdb.com/title/{{ show.imdb_id }}" target="_blank" class="text-blue-600 hover:text-blue-800">
                                 {{ show.imdb_id }}
                             </a>
@@ -41,61 +41,61 @@
 
                     <!-- Basic Info -->
                     <div>
-                        <dt class="text-sm font-medium text-gray-500">Type</dt>
-                        <dd class="mt-1 text-sm text-gray-900">{{ show.type or '-' }}</dd>
+                        <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Type</dt>
+                        <dd class="mt-1 text-sm text-gray-900 dark:text-gray-100">{{ show.type or '-' }}</dd>
                     </div>
                     <div>
-                        <dt class="text-sm font-medium text-gray-500">Language</dt>
-                        <dd class="mt-1 text-sm text-gray-900">{{ show.language or '-' }}</dd>
+                        <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Language</dt>
+                        <dd class="mt-1 text-sm text-gray-900 dark:text-gray-100">{{ show.language or '-' }}</dd>
                     </div>
                     <div>
-                        <dt class="text-sm font-medium text-gray-500">Country</dt>
-                        <dd class="mt-1 text-sm text-gray-900">{{ show.country or '-' }}</dd>
+                        <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Country</dt>
+                        <dd class="mt-1 text-sm text-gray-900 dark:text-gray-100">{{ show.country or '-' }}</dd>
                     </div>
                     <div>
-                        <dt class="text-sm font-medium text-gray-500">Status</dt>
-                        <dd class="mt-1 text-sm text-gray-900">{{ show.status or '-' }}</dd>
+                        <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Status</dt>
+                        <dd class="mt-1 text-sm text-gray-900 dark:text-gray-100">{{ show.status or '-' }}</dd>
                     </div>
 
                     <!-- Dates -->
                     <div>
-                        <dt class="text-sm font-medium text-gray-500">Premiered</dt>
-                        <dd class="mt-1 text-sm text-gray-900">{{ show.premiered.strftime('%Y-%m-%d') if show.premiered else '-' }}</dd>
+                        <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Premiered</dt>
+                        <dd class="mt-1 text-sm text-gray-900 dark:text-gray-100">{{ show.premiered.strftime('%Y-%m-%d') if show.premiered else '-' }}</dd>
                     </div>
                     <div>
-                        <dt class="text-sm font-medium text-gray-500">Ended</dt>
-                        <dd class="mt-1 text-sm text-gray-900">{{ show.ended.strftime('%Y-%m-%d') if show.ended else '-' }}</dd>
+                        <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Ended</dt>
+                        <dd class="mt-1 text-sm text-gray-900 dark:text-gray-100">{{ show.ended.strftime('%Y-%m-%d') if show.ended else '-' }}</dd>
                     </div>
 
                     <!-- Network -->
                     <div>
-                        <dt class="text-sm font-medium text-gray-500">Network</dt>
-                        <dd class="mt-1 text-sm text-gray-900">{{ show.network or '-' }}</dd>
+                        <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Network</dt>
+                        <dd class="mt-1 text-sm text-gray-900 dark:text-gray-100">{{ show.network or '-' }}</dd>
                     </div>
                     {% if show.web_channel %}
                     <div>
-                        <dt class="text-sm font-medium text-gray-500">Web Channel</dt>
-                        <dd class="mt-1 text-sm text-gray-900">{{ show.web_channel }}</dd>
+                        <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Web Channel</dt>
+                        <dd class="mt-1 text-sm text-gray-900 dark:text-gray-100">{{ show.web_channel }}</dd>
                     </div>
                     {% endif %}
 
                     <!-- Runtime & Rating -->
                     <div>
-                        <dt class="text-sm font-medium text-gray-500">Runtime</dt>
-                        <dd class="mt-1 text-sm text-gray-900">{{ show.runtime }} min</dd>
+                        <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Runtime</dt>
+                        <dd class="mt-1 text-sm text-gray-900 dark:text-gray-100">{{ show.runtime }} min</dd>
                     </div>
                     <div>
-                        <dt class="text-sm font-medium text-gray-500">Rating</dt>
-                        <dd class="mt-1 text-sm text-gray-900">{{ show.rating or '-' }}</dd>
+                        <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Rating</dt>
+                        <dd class="mt-1 text-sm text-gray-900 dark:text-gray-100">{{ show.rating or '-' }}</dd>
                     </div>
 
                     <!-- Genres -->
                     <div class="sm:col-span-2">
-                        <dt class="text-sm font-medium text-gray-500">Genres</dt>
-                        <dd class="mt-1 text-sm text-gray-900">
+                        <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Genres</dt>
+                        <dd class="mt-1 text-sm text-gray-900 dark:text-gray-100">
                             {% if show.genres %}
                                 {% for genre in show.genres %}
-                                <span class="inline-flex items-center rounded-md bg-gray-100 px-2 py-1 text-xs font-medium text-gray-600 mr-1 mb-1">
+                                <span class="inline-flex items-center rounded-md bg-gray-100 px-2 py-1 text-xs font-medium text-gray-600 mr-1 mb-1 dark:bg-gray-700 dark:text-gray-300">
                                     {{ genre }}
                                 </span>
                                 {% endfor %}
@@ -108,49 +108,49 @@
                     <!-- Sonarr Info -->
                     {% if show.sonarr_series_id %}
                     <div>
-                        <dt class="text-sm font-medium text-gray-500">Sonarr Series ID</dt>
-                        <dd class="mt-1 text-sm text-gray-900">{{ show.sonarr_series_id }}</dd>
+                        <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Sonarr Series ID</dt>
+                        <dd class="mt-1 text-sm text-gray-900 dark:text-gray-100">{{ show.sonarr_series_id }}</dd>
                     </div>
                     <div>
-                        <dt class="text-sm font-medium text-gray-500">Added to Sonarr</dt>
-                        <dd class="mt-1 text-sm text-gray-900">{{ show.added_to_sonarr_at|format_datetime }}</dd>
+                        <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Added to Sonarr</dt>
+                        <dd class="mt-1 text-sm text-gray-900 dark:text-gray-100">{{ show.added_to_sonarr_at|format_datetime }}</dd>
                     </div>
                     {% endif %}
 
                     <!-- Error Message -->
                     {% if show.error_message %}
                     <div class="sm:col-span-2">
-                        <dt class="text-sm font-medium text-gray-500">Error</dt>
-                        <dd class="mt-1 text-sm text-red-600">{{ show.error_message }}</dd>
+                        <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Error</dt>
+                        <dd class="mt-1 text-sm text-red-600 dark:text-red-400">{{ show.error_message }}</dd>
                     </div>
                     {% endif %}
 
                     <!-- Timestamps -->
                     <div>
-                        <dt class="text-sm font-medium text-gray-500">Last Checked</dt>
-                        <dd class="mt-1 text-sm text-gray-900">{{ show.last_checked|format_datetime }}</dd>
+                        <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Last Checked</dt>
+                        <dd class="mt-1 text-sm text-gray-900 dark:text-gray-100">{{ show.last_checked|format_datetime }}</dd>
                     </div>
                     {% if show.tvmaze_updated_at %}
                     <div>
-                        <dt class="text-sm font-medium text-gray-500">TVMaze Updated</dt>
-                        <dd class="mt-1 text-sm text-gray-900">{{ show.tvmaze_updated_at }}</dd>
+                        <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">TVMaze Updated</dt>
+                        <dd class="mt-1 text-sm text-gray-900 dark:text-gray-100">{{ show.tvmaze_updated_at }}</dd>
                     </div>
                     {% endif %}
                 </dl>
             </div>
 
             <!-- External Links -->
-            <div class="mt-6 border-t border-gray-200 pt-4">
+            <div class="mt-6 border-t border-gray-200 pt-4 dark:border-gray-700">
                 <div class="flex space-x-4">
                     <a href="https://www.tvmaze.com/shows/{{ show.tvmaze_id }}"
                        target="_blank"
-                       class="text-sm text-blue-600 hover:text-blue-800">
+                       class="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">
                         View on TVMaze
                     </a>
                     {% if show.tvdb_id %}
                     <a href="https://thetvdb.com/series/{{ show.tvdb_id }}"
                        target="_blank"
-                       class="text-sm text-blue-600 hover:text-blue-800">
+                       class="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">
                         View on TVDB
                     </a>
                     {% endif %}

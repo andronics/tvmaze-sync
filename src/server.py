@@ -231,7 +231,8 @@ def create_app(
         """Return nav sync status HTML partial for HTMX polling."""
         return render_template(
             'partials/nav_status.html',
-            sync_running=scheduler.is_running
+            sync_running=scheduler.is_running,
+            reprocessing_filters=processor.is_reprocessing_filters
         )
 
     @app.route('/ui/partials/sync-status')
@@ -243,6 +244,7 @@ def create_app(
             state=state,
             scheduler=scheduler,
             sync_running=scheduler.is_running,
+            reprocessing_filters=processor.is_reprocessing_filters,
             db_healthy=db.is_healthy(),
             sonarr_healthy=sonarr_client.is_healthy(),
             status_counts=status_counts,
@@ -360,6 +362,7 @@ def create_app(
             "highest_tvmaze_id": state.highest_tvmaze_id,
             "next_scheduled_run": scheduler.next_run.isoformat() if scheduler.next_run else None,
             "sync_running": scheduler.is_running,
+            "reprocessing_filters": processor.is_reprocessing_filters,
             "status_counts": db.get_status_counts(),
             "total_shows": db.get_total_count(),
         })
